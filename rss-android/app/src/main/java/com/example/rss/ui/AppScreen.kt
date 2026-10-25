@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -47,7 +48,6 @@ import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.automirrored.rounded.Feed
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.RssFeed
 import androidx.compose.material3.AlertDialog
@@ -114,6 +114,13 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -141,6 +148,8 @@ import androidx.compose.ui.Alignment.Companion.TopEnd
 import androidx.compose.ui.unit.Dp
 import androidx.graphics.shapes.Morph
 import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlin.math.min
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.rss.Article
@@ -249,18 +258,34 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
             // The decorative shape belongs to the article lists only.
             if (state.screen == Screen.Stream || state.screen == Screen.Saved) IntroShape()
 
-            when (state.screen) {
-                Screen.Sources -> SourcesList(state, vm, listState)
-                Screen.Settings -> SettingsContent(
-                    page = state.settingsPage,
-                    settings = state.settings,
-                    onChange = vm::updateSettings,
-                    onOpen = vm::openSettingsPage,
-                    onClearReadMarks = vm::clearReadMarks,
-                    onExportOpml = { exportOpml.launch("akis-kaynaklar.opml") },
-                    onImportOpml = { importOpml.launch(arrayOf("*/*")) },
-                )
-                else -> ArticleList(state, vm, listState, onOpen = { openArticle = it })
+            // Switching sections slides the new page in from the side it lives on in the bar.
+            val slide = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+            val fade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+            AnimatedContent(
+                targetState = state.screen,
+                transitionSpec = {
+                    val forward = targetState.ordinal > initialState.ordinal
+                    val towards = if (forward) AnimatedContentTransitionScope.SlideDirection.Start else AnimatedContentTransitionScope.SlideDirection.End
+                    (fadeIn(fade) + slideIntoContainer(towards, slide)) togetherWith
+                        (fadeOut(fade) + slideOutOfContainer(towards, slide))
+                },
+                label = "screen",
+            ) { screen ->
+                // Each page is given the screen it shows, so a leaving page keeps its own content while it moves out.
+                val page = state.copy(screen = screen)
+                when (screen) {
+                    Screen.Sources -> SourcesList(page, vm, listState)
+                    Screen.Settings -> SettingsContent(
+                        page = state.settingsPage,
+                        settings = state.settings,
+                        onChange = vm::updateSettings,
+                        onOpen = vm::openSettingsPage,
+                        onClearReadMarks = vm::clearReadMarks,
+                        onExportOpml = { exportOpml.launch("akis-kaynaklar.opml") },
+                        onImportOpml = { importOpml.launch(arrayOf("*/*")) },
+                    )
+                    else -> ArticleList(page, vm, listState, onOpen = { openArticle = it })
+                }
             }
 
             // Snackbars sit above the toolbar, never under it.
@@ -341,6 +366,9 @@ private fun ArticleList(
     val visible = state.visible
     val hero = if (state.screen == Screen.Stream) visible.firstOrNull() else null
     val rest = if (hero != null) visible.drop(1) else visible
+    // Articles that have already risen in on this page: scrolling back to them must not replay the entrance.
+    val risen = remember { mutableSetOf<String>() }
+    fun riseFor(id: String, index: Int): Long? = if (risen.add(id)) min(index, 8) * 60L else null
 
     LazyColumn(
         state = listState,
@@ -348,20 +376,6 @@ private fun ArticleList(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (state.screen == Screen.Stream || state.screen == Screen.Saved) {
-            item(key = "search") {
-                OutlinedTextField(
-                    value = state.query,
-                    onValueChange = vm::setQuery,
-                    placeholder = { Text("Yazılarda ara") },
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(28.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
         if (state.screen == Screen.Stream && state.feeds.isNotEmpty()) {
             item(key = "filters") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -385,17 +399,23 @@ private fun ArticleList(
 
         if (hero != null) {
             item(key = "hero-${hero.id}") {
-                HeroCard(article = hero, read = hero.id in state.read, onOpen = { onOpen(hero) })
+                HeroCard(
+                    article = hero,
+                    read = hero.id in state.read,
+                    onOpen = { onOpen(hero) },
+                    riseDelay = riseFor(hero.id, 0),
+                )
             }
         }
 
-        items(rest, key = { it.id }) { article ->
+        itemsIndexed(rest, key = { _, article -> article.id }) { index, article ->
             ArticleCard(
                 article = article,
                 read = article.id in state.read,
                 saved = state.saved.containsKey(article.id),
                 onOpen = { onOpen(article) },
                 onToggleSave = { vm.toggleSaved(article) },
+                riseDelay = riseFor(article.id, index + 1),
                 modifier = Modifier.animateItem(),
             )
         }
@@ -416,7 +436,7 @@ private fun ArticleList(
 }
 
 @Composable
-private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
+private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit, riseDelay: Long?) {
     val source = remember { MutableInteractionSource() }
     val scale by pressScale(source)
     val hasImage = article.image.isNotEmpty()
@@ -430,6 +450,7 @@ private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(240.dp)
+            .riseIn(riseDelay)
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -489,6 +510,7 @@ private fun ArticleCard(
     saved: Boolean,
     onOpen: () -> Unit,
     onToggleSave: () -> Unit,
+    riseDelay: Long?,
     modifier: Modifier = Modifier,
 ) {
     val source = remember { MutableInteractionSource() }
@@ -501,6 +523,7 @@ private fun ArticleCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = modifier
             .fillMaxWidth()
+            .riseIn(riseDelay)
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, top = 18.dp, end = 12.dp, bottom = 10.dp)) {
@@ -566,10 +589,23 @@ private fun SaveBadge(saved: Boolean, onClick: () -> Unit) {
         MaterialTheme.colorScheme.primaryContainer,
         progress,
     )
+    // Each toggle squashes the badge and lets the spring bring it back; the first composition stays still.
+    val pop = remember { Animatable(1f) }
+    var toggled by remember { mutableStateOf(false) }
+    val squash = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val spring = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(saved) {
+        if (toggled) {
+            pop.animateTo(0.7f, squash)
+            pop.animateTo(1f, spring)
+        }
+        toggled = true
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(44.dp)
+            .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
             .clip(MorphShape(saveMorph, progress))
             .background(container)
             .clickable(onClick = onClick),
@@ -591,6 +627,29 @@ private fun pressScale(source: MutableInteractionSource): State<Float> {
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "press-scale",
     )
+}
+
+/**
+ * The entrance of a card: it rises, grows and fades in on the spatial spring after [delayMillis].
+ * A null delay means the card has already risen, so it is drawn in place at once.
+ */
+@Composable
+private fun Modifier.riseIn(delayMillis: Long?): Modifier {
+    val progress = remember { Animatable(if (delayMillis == null) 1f else 0f) }
+    val spring = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(Unit) {
+        if (delayMillis != null) {
+            delay(delayMillis)
+            progress.animateTo(1f, spring)
+        }
+    }
+    return graphicsLayer {
+        val p = progress.value
+        alpha = p
+        translationY = (1f - p) * 48.dp.toPx()
+        scaleX = 0.92f + 0.08f * p
+        scaleY = scaleX
+    }
 }
 
 @Composable
@@ -811,19 +870,24 @@ private fun ReaderSheet(
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        if (loadingText) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                            Text(
-                                "Tam metin yükleniyor…",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            Text(
-                                text = readingText(body, settings.easyReading),
-                                style = readingStyle(settings),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
+                        // The loading state and the text cross-fade, so the full text arrives smoothly.
+                        AnimatedContent(targetState = loadingText, label = "reader-body") { loading ->
+                            if (loading) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    Text(
+                                        "Tam metin yükleniyor…",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = readingText(body, settings.easyReading),
+                                    style = readingStyle(settings),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
 
@@ -947,11 +1011,22 @@ private fun BoxScope.IntroShape() {
         label = "intro-shape",
     )
     // The shape turns slowly and steadily behind the content.
-    val turn by rememberInfiniteTransition(label = "intro-turn").animateFloat(
+    val motion = rememberInfiniteTransition(label = "intro-motion")
+    val turn by motion.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(animation = tween(durationMillis = 60_000, easing = LinearEasing)),
         label = "intro-turn-angle",
+    )
+    // It also breathes: its outline travels back and forth between a pill and a cookie.
+    val breathe by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5_000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "intro-breathe",
     )
     Box(
         modifier = Modifier
@@ -959,12 +1034,12 @@ private fun BoxScope.IntroShape() {
             .offset(x = 96.dp, y = (-56).dp)
             .size(280.dp)
             .graphicsLayer {
-                scaleX = 0.4f + 0.6f * progress
-                scaleY = 0.4f + 0.6f * progress
+                scaleX = (0.4f + 0.6f * progress) * (1f + 0.04f * breathe)
+                scaleY = (0.4f + 0.6f * progress) * (1f + 0.04f * breathe)
                 alpha = 0.22f * progress
                 rotationZ = turn
             }
-            .clip(MorphShape(introMorph, progress))
+            .clip(MorphShape(introMorph, breathe))
             .background(MaterialTheme.colorScheme.primaryContainer),
     )
 }

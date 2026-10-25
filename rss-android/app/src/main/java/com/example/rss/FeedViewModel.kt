@@ -32,13 +32,11 @@ data class UiState(
     val loadingTextId: String? = null,
     val settings: AppSettings = AppSettings(),
     val settingsPage: SettingsDestination = SettingsDestination.Home,
-    /** The search text typed in the article lists. */
-    val query: String = "",
 ) {
     /** Articles the current screen shows, newest first. */
     val visible: List<Article>
         get() {
-            val base = when (screen) {
+            return when (screen) {
                 Screen.Saved -> saved.values.sortedByDescending { it.dateMillis ?: 0L }
                 Screen.Settings -> emptyList()
                 else -> {
@@ -50,7 +48,6 @@ data class UiState(
                     }
                 }
             }
-            return base.filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
         }
 }
 
@@ -116,8 +113,6 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     fun filter(feedId: String?) = _state.update { it.copy(filterFeedId = feedId) }
 
     fun dismissMessage() = _state.update { it.copy(message = null) }
-
-    fun setQuery(text: String) = _state.update { it.copy(query = text) }
 
     fun updateSettings(change: (AppSettings) -> AppSettings) {
         val next = change(_state.value.settings)
