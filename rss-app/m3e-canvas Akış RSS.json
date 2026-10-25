@@ -1,0 +1,615 @@
+{
+  "groups": [
+    {
+      "id": "stream-r0-p1",
+      "x": 16,
+      "y": 0,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p1",
+          "icon": "search",
+          "kind": "topAppBar",
+          "label": "Akış",
+          "variant": "text",
+          "icon2": "refresh"
+        }
+      ]
+    },
+    {
+      "id": "stream-r1",
+      "x": 16,
+      "y": 76,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p2",
+          "icon": null,
+          "kind": "chip",
+          "label": "Tümü",
+          "variant": "filled",
+          "checked": true
+        },
+        {
+          "id": "p3",
+          "icon": null,
+          "kind": "chip",
+          "label": "Hacker News",
+          "variant": "outlined"
+        },
+        {
+          "id": "p4",
+          "icon": null,
+          "kind": "chip",
+          "label": "The Verge",
+          "variant": "outlined"
+        }
+      ]
+    },
+    {
+      "id": "stream-r2-p5",
+      "x": 16,
+      "y": 128,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p5",
+          "icon": null,
+          "kind": "card",
+          "label": "Yapay zeka araçları işleri değiştiriyor",
+          "supporting": "Hacker News · 1 saat önce",
+          "variant": "filled",
+          "imagePos": "top",
+          "imageSize": 200,
+          "action": {
+            "to": "read",
+            "transition": "expand"
+          }
+        }
+      ]
+    },
+    {
+      "id": "stream-r3-p6",
+      "x": 16,
+      "y": 452,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p6",
+          "icon": null,
+          "kind": "card",
+          "label": "Açık kaynak derleyiciler yeni sürüm",
+          "supporting": "BBC Teknoloji · 2 saat önce",
+          "variant": "elevated",
+          "noImage": true,
+          "action": {
+            "to": "read",
+            "transition": "slide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "stream-r4-p7",
+      "x": 16,
+      "y": 566,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p7",
+          "icon": null,
+          "kind": "card",
+          "label": "Katı hal bataryalar seri üretimde",
+          "supporting": "The Verge · 3 saat önce",
+          "variant": "tonal",
+          "noImage": true,
+          "action": {
+            "to": "read",
+            "transition": "slide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "stream-r5-p8",
+      "x": 16,
+      "y": 812,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p8",
+          "icon": null,
+          "kind": "bottomNav",
+          "label": "Gezinme",
+          "variant": "filled",
+          "selected": 0,
+          "tabs": [
+            {
+              "icon": "feed",
+              "label": "Akış"
+            },
+            {
+              "icon": "bookmark",
+              "label": "Kaydedilen"
+            },
+            {
+              "icon": "rss_feed",
+              "label": "Kaynaklar"
+            }
+          ],
+          "actions": {
+            "tab:0": {
+              "to": "stream",
+              "transition": "fade"
+            },
+            "tab:1": {
+              "to": "saved",
+              "transition": "fade"
+            },
+            "tab:2": {
+              "to": "feeds",
+              "transition": "fade"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-r0-p9",
+      "x": 548,
+      "y": 0,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p9",
+          "icon": "arrow_back",
+          "kind": "topAppBar",
+          "label": "Haber",
+          "variant": "text",
+          "icon2": "bookmark_border",
+          "actions": {
+            "icon": {
+              "to": "back",
+              "transition": "slideLeft"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-r1-p10",
+      "x": 548,
+      "y": 96,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p10",
+          "icon": null,
+          "kind": "text",
+          "label": "Yapay zeka araçları",
+          "variant": "text",
+          "bold": true
+        }
+      ]
+    },
+    {
+      "id": "read-r2-p11",
+      "x": 548,
+      "y": 128,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p11",
+          "icon": null,
+          "kind": "text",
+          "label": "gündelik işleri değiştiriyor",
+          "variant": "text",
+          "bold": true
+        }
+      ]
+    },
+    {
+      "id": "read-r3-p12",
+      "x": 548,
+      "y": 190,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p12",
+          "icon": null,
+          "kind": "text",
+          "label": "Yeni nesil asistanlar",
+          "variant": "text"
+        }
+      ]
+    },
+    {
+      "id": "read-r4-p13",
+      "x": 548,
+      "y": 214,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p13",
+          "icon": null,
+          "kind": "text",
+          "label": "kod yazmaktan takvime",
+          "variant": "text"
+        }
+      ]
+    },
+    {
+      "id": "read-r5-p14",
+      "x": 548,
+      "y": 238,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p14",
+          "icon": null,
+          "kind": "text",
+          "label": "her alanda iş akışlarını",
+          "variant": "text"
+        }
+      ]
+    },
+    {
+      "id": "read-r6-p15",
+      "x": 548,
+      "y": 262,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p15",
+          "icon": null,
+          "kind": "text",
+          "label": "yeniden tanımlıyor.",
+          "variant": "text"
+        }
+      ]
+    },
+    {
+      "id": "read-r7",
+      "x": 548,
+      "y": 316,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p16",
+          "icon": "open_in_new",
+          "kind": "button",
+          "label": "Orijinali aç",
+          "variant": "filled",
+          "action": {
+            "to": "link",
+            "transition": "none",
+            "url": "https://news.ycombinator.com/"
+          }
+        },
+        {
+          "id": "p17",
+          "icon": "bookmark_border",
+          "kind": "button",
+          "label": "Kaydet",
+          "variant": "tonal",
+          "toggle": {
+            "icon": "bookmark",
+            "label": "Kaydedildi"
+          }
+        }
+      ]
+    },
+    {
+      "id": "saved-r0-p18",
+      "x": 1080,
+      "y": 0,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p18",
+          "icon": "search",
+          "kind": "topAppBar",
+          "label": "Kaydedilenler",
+          "variant": "text",
+          "icon2": "sort"
+        }
+      ]
+    },
+    {
+      "id": "saved-r1-p19",
+      "x": 1080,
+      "y": 84,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p19",
+          "icon": null,
+          "kind": "card",
+          "label": "Yapay zeka araçları işleri değiştiriyor",
+          "supporting": "Hacker News · 1 saat önce",
+          "variant": "elevated",
+          "noImage": true,
+          "action": {
+            "to": "read",
+            "transition": "slide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "saved-r2-p20",
+      "x": 1080,
+      "y": 204,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p20",
+          "icon": null,
+          "kind": "card",
+          "label": "Katı hal bataryalar seri üretimde",
+          "supporting": "The Verge · 3 saat önce",
+          "variant": "tonal",
+          "noImage": true,
+          "action": {
+            "to": "read",
+            "transition": "slide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "saved-r3-p21",
+      "x": 1080,
+      "y": 812,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p21",
+          "icon": null,
+          "kind": "bottomNav",
+          "label": "Gezinme",
+          "variant": "filled",
+          "selected": 1,
+          "tabs": [
+            {
+              "icon": "feed",
+              "label": "Akış"
+            },
+            {
+              "icon": "bookmark",
+              "label": "Kaydedilen"
+            },
+            {
+              "icon": "rss_feed",
+              "label": "Kaynaklar"
+            }
+          ],
+          "actions": {
+            "tab:0": {
+              "to": "stream",
+              "transition": "fade"
+            },
+            "tab:1": {
+              "to": "saved",
+              "transition": "fade"
+            },
+            "tab:2": {
+              "to": "feeds",
+              "transition": "fade"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "feeds-r0-p22",
+      "x": 1612,
+      "y": 0,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p22",
+          "icon": null,
+          "kind": "topAppBar",
+          "label": "Kaynaklar",
+          "variant": "text",
+          "icon2": "more_vert"
+        }
+      ]
+    },
+    {
+      "id": "feeds-r1-p23",
+      "x": 1612,
+      "y": 84,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p23",
+          "icon": "rss_feed",
+          "kind": "listItem",
+          "label": "Hacker News",
+          "supporting": "hnrss.org/frontpage",
+          "variant": "tonal",
+          "switch": true,
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "feeds-r2-p24",
+      "x": 1612,
+      "y": 164,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p24",
+          "icon": "rss_feed",
+          "kind": "listItem",
+          "label": "The Verge",
+          "supporting": "theverge.com/rss",
+          "variant": "tonal",
+          "switch": true,
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "feeds-r3-p25",
+      "x": 1612,
+      "y": 244,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p25",
+          "icon": "rss_feed",
+          "kind": "listItem",
+          "label": "BBC Teknoloji",
+          "supporting": "feeds.bbci.co.uk",
+          "variant": "tonal",
+          "switch": true,
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "feeds-r4-p26",
+      "x": 1858,
+      "y": 740,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p26",
+          "icon": "add",
+          "kind": "extendedFab",
+          "label": "Kaynak ekle",
+          "variant": "tonal",
+          "action": {
+            "to": "add",
+            "transition": "slideUp"
+          }
+        }
+      ]
+    },
+    {
+      "id": "feeds-r5-p27",
+      "x": 1612,
+      "y": 812,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p27",
+          "icon": null,
+          "kind": "bottomNav",
+          "label": "Gezinme",
+          "variant": "filled",
+          "selected": 2,
+          "tabs": [
+            {
+              "icon": "feed",
+              "label": "Akış"
+            },
+            {
+              "icon": "bookmark",
+              "label": "Kaydedilen"
+            },
+            {
+              "icon": "rss_feed",
+              "label": "Kaynaklar"
+            }
+          ],
+          "actions": {
+            "tab:0": {
+              "to": "stream",
+              "transition": "fade"
+            },
+            "tab:1": {
+              "to": "saved",
+              "transition": "fade"
+            },
+            "tab:2": {
+              "to": "feeds",
+              "transition": "fade"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "add-r0-p28",
+      "x": 2168,
+      "y": 220,
+      "axis": "y",
+      "items": [
+        {
+          "id": "p28",
+          "icon": null,
+          "kind": "dialog",
+          "label": "Kaynak ekle",
+          "supporting": "RSS veya Atom bağlantısını yapıştırın.",
+          "variant": "elevated"
+        }
+      ]
+    }
+  ],
+  "frames": [
+    {
+      "id": "stream",
+      "name": "Akış",
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 892,
+      "note": "Ana ekran. Üstte başlık ve kaynak filtre çipleri, öne çıkan yazı, altta yazı kartları ve alt gezinme."
+    },
+    {
+      "id": "read",
+      "name": "Okuma",
+      "x": 532,
+      "y": 0,
+      "w": 412,
+      "h": 892,
+      "note": "Bir yazının okuma ekranı. Geri ok ile Akış'a döner. Kaydet ve Orijinali aç düğmeleri vardır."
+    },
+    {
+      "id": "saved",
+      "name": "Kaydedilenler",
+      "x": 1064,
+      "y": 0,
+      "w": 412,
+      "h": 892,
+      "note": "Kaydedilmiş yazıların listesi. Her kart okuma ekranına gider."
+    },
+    {
+      "id": "feeds",
+      "name": "Kaynaklar",
+      "x": 1596,
+      "y": 0,
+      "w": 412,
+      "h": 892,
+      "note": "Takip edilen RSS kaynaklarının listesi. Her satırda akışta gösterme anahtarı var. Sağ altta Kaynak ekle düğmesi yeni bağlantı diyaloğunu açar."
+    },
+    {
+      "id": "add",
+      "name": "Kaynak ekle",
+      "x": 2128,
+      "y": 0,
+      "w": 412,
+      "h": 892,
+      "note": "Kaynaklar ekranının üstünde açılan diyalog. RSS veya Atom bağlantısı girilir ve Ekle ile kaydedilir."
+    }
+  ],
+  "paletteKey": "purple",
+  "frame": "phone",
+  "platform": "android",
+  "title": "Akış RSS",
+  "brief": "Material 3 Expressive ile yapılmış bir RSS ve Atom okuyucu. Üstte başlık, kaynak filtre çipleri, öne çıkan yazı ve yazı kartları var. Alt gezinme Akış, Kaydedilenler ve Kaynaklar arasında geçiş sağlar. Yazılar kaydedilebilir ve orijinal siteye açılabilir. Kaynaklar listesinden yeni RSS bağlantısı eklenir.",
+  "theme": {
+    "dark": false,
+    "bothModes": true,
+    "contrast": "standard",
+    "shape": "rounded",
+    "font": "roboto",
+    "emphasized": true,
+    "motion": "expressive"
+  }
+}
