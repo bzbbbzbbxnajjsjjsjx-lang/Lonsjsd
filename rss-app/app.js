@@ -1,3 +1,20 @@
+import '@material/web/button/filled-button.js';
+import '@material/web/button/filled-tonal-button.js';
+import '@material/web/button/text-button.js';
+import '@material/web/iconbutton/icon-button.js';
+import '@material/web/fab/fab.js';
+import '@material/web/chips/chip-set.js';
+import '@material/web/chips/filter-chip.js';
+import '@material/web/list/list.js';
+import '@material/web/list/list-item.js';
+import '@material/web/dialog/dialog.js';
+import '@material/web/textfield/outlined-text-field.js';
+import '@material/web/progress/linear-progress.js';
+import '@material/web/labs/navigationbar/navigation-bar.js';
+import '@material/web/labs/navigationtab/navigation-tab.js';
+import '@material/web/labs/card/elevated-card.js';
+import '@material/web/labs/card/filled-card.js';
+
 // Public CORS proxy, used only when a feed does not allow direct browser requests.
 const PROXY = 'https://api.allorigins.win/raw?url=';
 
@@ -24,12 +41,12 @@ const store = {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {
-      // Storage is unavailable (private mode, blocked site data). The app keeps working in memory.
+      // Storage unavailable (private mode, blocked site data): keep working in memory.
     }
   },
 };
 
-// The article currently shown in the reader dialog.
+// The article open in the reader dialog.
 let articleId = null;
 
 const state = {
@@ -75,7 +92,7 @@ async function fetchText(url) {
   throw new Error(`Kaynak alınamadı: ${url}`);
 }
 
-// Reads both RSS (<item>) and Atom (<entry>) documents.
+// Reads RSS (<item>) and Atom (<entry>) documents.
 function parseFeed(xml, feed) {
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   if (doc.getElementsByTagName('parsererror').length) {
@@ -149,7 +166,7 @@ async function refresh() {
     }
   });
 
-  // Keep the cached articles when every source failed.
+  // Keep cached articles when every source failed.
   if (fresh.length) {
     state.items = mergeItems(fresh);
     store.set(KEYS.items, state.items);
@@ -180,35 +197,38 @@ function card(item) {
   const saved = Object.hasOwn(state.saved, item.id);
   const read = state.read.has(item.id);
   return `
-    <article class="card${read ? ' is-read' : ''}" data-id="${esc(item.id)}" tabindex="0">
-      ${item.image ? `<img class="card-img" src="${esc(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
-      <h3>${esc(item.title)}</h3>
-      <p>${esc(item.summary)}</p>
-      <div class="card-foot">
-        <div class="card-meta"><span>${esc(item.source)}</span><span>${esc(timeAgo(item.date))}</span></div>
-        <button class="icon-btn save${saved ? ' on' : ''}" data-save="${esc(item.id)}" aria-label="${saved ? 'Kayıttan çıkar' : 'Kaydet'}">
-          <span class="ms${saved ? ' fill' : ''}">bookmark</span>
-        </button>
+    <md-elevated-card data-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(item.title)}" style="${read ? 'opacity:.78' : ''}">
+      <div class="card-body">
+        ${item.image ? `<img src="${esc(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+        <h3>${esc(item.title)}</h3>
+        <p>${esc(item.summary)}</p>
+        <div class="card-foot">
+          <span class="source">${esc(item.source)}</span>
+          <span class="when">${esc(timeAgo(item.date))}</span>
+          <md-icon-button data-save="${esc(item.id)}" class="${saved ? 'on' : ''}" aria-label="${saved ? 'Kayıttan çıkar' : 'Kaydet'}" toggle ${saved ? 'selected' : ''}>
+            <span class="material-symbols-rounded">bookmark</span>
+            <span slot="selected" class="material-symbols-rounded">bookmark</span>
+          </md-icon-button>
+        </div>
       </div>
-    </article>`;
+    </md-elevated-card>`;
 }
 
-function heroCard(item) {
+function hero(item) {
   return `
-    <article class="hero${item.image ? ' has-img' : ''}" data-id="${esc(item.id)}" tabindex="0">
-      ${item.image ? `<div class="hero-media"><img src="${esc(item.image)}" alt="" referrerpolicy="no-referrer"></div>` : ''}
+    <md-filled-card data-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(item.title)}">
       <div class="hero-body">
-        <div class="eyebrow"><span>${esc(item.source)}</span><span>·</span><span>${esc(timeAgo(item.date))}</span></div>
+        <span class="source">${esc(item.source)} · ${esc(timeAgo(item.date))}</span>
         <h2>${esc(item.title)}</h2>
         <p>${esc(item.summary)}</p>
       </div>
-    </article>`;
+    </md-filled-card>`;
 }
 
 function renderChips() {
   const chips = [{ id: 'all', title: 'Tümü' }, ...state.feeds];
   $('#chips').innerHTML = chips
-    .map((chip) => `<button class="chip" data-filter="${esc(chip.id)}" aria-pressed="${state.filter === chip.id}">${esc(chip.title)}</button>`)
+    .map((chip) => `<md-filter-chip label="${esc(chip.title)}" data-filter="${esc(chip.id)}" ${state.filter === chip.id ? 'selected' : ''}></md-filter-chip>`)
     .join('');
 }
 
@@ -216,11 +236,14 @@ function renderFeeds() {
   $('#feeds').innerHTML = state.feeds
     .map(
       (feed) => `
-      <div class="row">
-        <div class="avatar">${esc(feed.title.charAt(0).toUpperCase())}</div>
-        <div class="info"><strong>${esc(feed.title)}</strong><small>${esc(feed.url)}</small></div>
-        <button class="icon-btn" data-remove="${esc(feed.id)}" aria-label="${esc(feed.title)} kaynağını kaldır"><span class="ms">delete</span></button>
-      </div>`,
+      <md-list-item type="text">
+        <span slot="headline">${esc(feed.title)}</span>
+        <span slot="supporting-text">${esc(feed.url)}</span>
+        <span slot="start" class="material-symbols-rounded">rss_feed</span>
+        <md-icon-button slot="end" data-remove="${esc(feed.id)}" aria-label="${esc(feed.title)} kaynağını kaldır">
+          <span class="material-symbols-rounded">delete</span>
+        </md-icon-button>
+      </md-list-item>`,
     )
     .join('');
 }
@@ -228,23 +251,21 @@ function renderFeeds() {
 function setEmpty(message) {
   const empty = $('#empty');
   empty.hidden = !message;
-  empty.innerHTML = message ? `<span class="ms">inbox</span>${esc(message)}` : '';
+  empty.innerHTML = message ? `<span class="material-symbols-rounded">inbox</span>${esc(message)}` : '';
 }
 
 function render() {
   $('#title').textContent = TITLES[state.view];
-  document.querySelectorAll('.nav button').forEach((button) => {
-    if (button.dataset.view === state.view) button.setAttribute('aria-current', 'page');
-    else button.removeAttribute('aria-current');
-  });
-
+  $('#nav').activeIndex = ['stream', 'saved', 'feeds'].indexOf(state.view);
   $('#add').hidden = state.view !== 'feeds';
   $('#chips').hidden = state.view !== 'stream';
+  $('#hero').hidden = state.view !== 'stream';
+  $('#grid').hidden = state.view === 'feeds';
   $('#feeds').hidden = state.view !== 'feeds';
 
   if (state.view === 'feeds') {
     renderFeeds();
-    setEmpty(state.feeds.length ? '' : 'Henüz kaynak yok. Kaynak ekle düğmesiyle bir RSS bağlantısı ekleyin.');
+    setEmpty(state.feeds.length ? '' : 'Henüz kaynak yok. Kaynak ekle ile bir RSS bağlantısı ekleyin.');
     return;
   }
 
@@ -252,7 +273,7 @@ function render() {
   const items = visibleItems();
   const isStream = state.view === 'stream';
 
-  $('#hero').innerHTML = isStream && items[0] ? heroCard(items[0]) : '';
+  $('#hero').innerHTML = isStream && items[0] ? hero(items[0]) : '';
   $('#grid').innerHTML = (isStream ? items.slice(1) : items).map(card).join('');
 
   if (!items.length) {
@@ -289,13 +310,13 @@ function toggleSave(id) {
   }
   store.set(KEYS.saved, state.saved);
 
-  if (id === articleId) syncSaveButton();
+  if (id === articleId) syncReaderSave();
   render();
 }
 
-function syncSaveButton() {
+function syncReaderSave() {
   const saved = Object.hasOwn(state.saved, articleId);
-  $('#a-save').innerHTML = `<span class="ms${saved ? ' fill' : ''}">bookmark</span>${saved ? 'Kaydedildi' : 'Kaydet'}`;
+  $('#r-save').textContent = saved ? 'Kaydedildi' : 'Kaydet';
 }
 
 function openArticle(id) {
@@ -306,14 +327,14 @@ function openArticle(id) {
   store.set(KEYS.read, [...state.read].slice(-500));
 
   articleId = id;
-  $('#a-meta').textContent = `${item.source} · ${timeAgo(item.date)}`;
-  $('#a-title').textContent = item.title;
-  $('#a-summary').textContent = item.summary || 'Özet yok. Tam yazı için orijinali açın.';
-  $('#a-open').href = item.link;
-  syncSaveButton();
+  $('#r-meta').textContent = `${item.source} · ${timeAgo(item.date)}`;
+  $('#r-title').textContent = item.title;
+  $('#r-summary').textContent = item.summary || 'Özet yok. Tam yazı için orijinali açın.';
+  $('#r-open').href = item.link;
+  syncReaderSave();
 
   render();
-  $('#article').showModal();
+  $('#reader').show();
 }
 
 function removeFeed(id) {
@@ -325,15 +346,12 @@ function removeFeed(id) {
 }
 
 function openAdd() {
-  $('#add-form').reset();
+  $('#add-url').value = '';
   $('#add-error').textContent = '';
-  $('#add-dialog').showModal();
-  $('#add-url').focus();
+  $('#add-dialog').show();
 }
 
-async function addFeed(event) {
-  event.preventDefault();
-  const submit = $('#add-submit');
+async function addFeed() {
   const error = $('#add-error');
   const raw = $('#add-url').value.trim();
 
@@ -349,7 +367,7 @@ async function addFeed(event) {
     return;
   }
 
-  submit.disabled = true;
+  $('#add-submit').disabled = true;
   error.textContent = 'Kaynak kontrol ediliyor…';
   try {
     const feed = { id: `f${Date.now().toString(36)}`, title: url, url };
@@ -367,7 +385,7 @@ async function addFeed(event) {
   } catch {
     error.textContent = 'Bu bağlantı okunamadı. RSS veya Atom olduğundan emin olun.';
   } finally {
-    submit.disabled = false;
+    $('#add-submit').disabled = false;
   }
 }
 
@@ -380,16 +398,9 @@ document.addEventListener('click', (event) => {
   const remove = target.closest('[data-remove]');
   if (remove) return removeFeed(remove.dataset.remove);
 
-  const filter = target.closest('[data-filter]');
-  if (filter) {
-    state.filter = filter.dataset.filter;
-    return render();
-  }
-
-  const view = target.closest('[data-view]');
-  if (view) {
-    state.view = view.dataset.view;
-    window.scrollTo({ top: 0 });
+  const filterChip = target.closest('md-filter-chip[data-filter]');
+  if (filterChip) {
+    state.filter = filterChip.dataset.filter;
     return render();
   }
 
@@ -398,16 +409,24 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && event.target.matches('[data-id]')) {
+  if (event.key === 'Enter' && event.target.matches?.('[data-id]')) {
     openArticle(event.target.dataset.id);
   }
+});
+
+$('#nav').addEventListener('navigation-bar-activated', (event) => {
+  const tab = event.detail.tab;
+  state.view = tab.dataset.view ?? 'stream';
+  window.scrollTo({ top: 0 });
+  render();
 });
 
 $('#refresh').addEventListener('click', refresh);
 $('#add').addEventListener('click', openAdd);
 $('#add-cancel').addEventListener('click', () => $('#add-dialog').close());
-$('#add-form').addEventListener('submit', addFeed);
-$('#a-save').addEventListener('click', () => toggleSave(articleId));
+$('#add-submit').addEventListener('click', addFeed);
+$('#add-form').addEventListener('submit', (event) => event.preventDefault());
+$('#r-save').addEventListener('click', () => toggleSave(articleId));
 
 render();
 refresh();

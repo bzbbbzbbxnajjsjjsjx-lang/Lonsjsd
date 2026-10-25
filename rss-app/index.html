@@ -9,64 +9,93 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300..900&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200&display=swap">
+  <!-- Material 3 Expressive design tokens: color, shape (incl. the "increased" corners), motion and type -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@material/web@2.5.0/labs/gb/styles/m3.css">
   <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "lit": "https://cdn.jsdelivr.net/npm/lit@3.3.3/index.js",
+      "lit/": "https://cdn.jsdelivr.net/npm/lit@3.3.3/",
+      "lit-html": "https://cdn.jsdelivr.net/npm/lit-html@3.3.3/lit-html.js",
+      "lit-html/": "https://cdn.jsdelivr.net/npm/lit-html@3.3.3/",
+      "lit-element": "https://cdn.jsdelivr.net/npm/lit-element@4.2.2/index.js",
+      "lit-element/": "https://cdn.jsdelivr.net/npm/lit-element@4.2.2/",
+      "@lit/reactive-element": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.1.2/reactive-element.js",
+      "@lit/reactive-element/": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.1.2/",
+      "tslib": "https://cdn.jsdelivr.net/npm/tslib@2.8.1/tslib.es6.js",
+      "@lit/context": "https://cdn.jsdelivr.net/npm/@lit/context@1.1.6/index.js",
+      "@lit/context/": "https://cdn.jsdelivr.net/npm/@lit/context@1.1.6/",
+      "@material/web/": "https://cdn.jsdelivr.net/npm/@material/web@2.5.0/"
+    }
+  }
+  </script>
 </head>
 <body>
-  <div class="progress" id="progress" hidden></div>
+  <md-linear-progress id="progress" indeterminate hidden></md-linear-progress>
 
-  <div class="app">
-    <header class="top">
-      <h1 id="title">Akış</h1>
-      <button class="icon-btn" id="refresh" aria-label="Yenile"><span class="ms">refresh</span></button>
-    </header>
+  <header class="top">
+    <h1 id="title">Akış</h1>
+    <md-icon-button id="refresh" aria-label="Yenile">
+      <span class="material-symbols-rounded">refresh</span>
+    </md-icon-button>
+  </header>
 
-    <main>
-      <div class="chips" id="chips" role="group" aria-label="Kaynak filtresi"></div>
-      <div id="hero"></div>
-      <div class="grid" id="grid"></div>
-      <div class="list" id="feeds" hidden></div>
-      <p class="empty" id="empty" hidden></p>
-    </main>
-  </div>
+  <main>
+    <md-chip-set id="chips" aria-label="Kaynak filtresi"></md-chip-set>
+    <section id="hero"></section>
+    <section id="grid" class="grid"></section>
+    <md-list id="feeds" hidden></md-list>
+    <p id="empty" class="empty" hidden></p>
+  </main>
 
-  <nav class="nav" aria-label="Gezinme">
-    <button data-view="stream" aria-current="page"><span class="pill"><span class="ms">feed</span></span>Akış</button>
-    <button data-view="saved"><span class="pill"><span class="ms">bookmark</span></span>Kaydedilen</button>
-    <button data-view="feeds"><span class="pill"><span class="ms">rss_feed</span></span>Kaynaklar</button>
-  </nav>
+  <md-navigation-bar id="nav" activeIndex="0">
+    <md-navigation-tab label="Akış" data-view="stream">
+      <span slot="active-icon" class="material-symbols-rounded">feed</span>
+      <span slot="inactive-icon" class="material-symbols-rounded">feed</span>
+    </md-navigation-tab>
+    <md-navigation-tab label="Kaydedilen" data-view="saved">
+      <span slot="active-icon" class="material-symbols-rounded">bookmark</span>
+      <span slot="inactive-icon" class="material-symbols-rounded">bookmark</span>
+    </md-navigation-tab>
+    <md-navigation-tab label="Kaynaklar" data-view="feeds">
+      <span slot="active-icon" class="material-symbols-rounded">rss_feed</span>
+      <span slot="inactive-icon" class="material-symbols-rounded">rss_feed</span>
+    </md-navigation-tab>
+  </md-navigation-bar>
 
-  <button class="fab" id="add" hidden><span class="ms">add</span>Kaynak ekle</button>
+  <md-fab id="add" class="fab" label="Kaynak ekle" hidden>
+    <span slot="icon" class="material-symbols-rounded">add</span>
+  </md-fab>
 
-  <dialog id="article">
-    <div class="dlg">
-      <div class="eyebrow" id="a-meta"></div>
-      <h2 id="a-title"></h2>
-      <p class="body" id="a-summary"></p>
-      <form method="dialog" class="actions">
-        <button type="button" class="btn btn-tonal" id="a-save"></button>
-        <a class="btn btn-filled" id="a-open" target="_blank" rel="noopener noreferrer">Orijinali aç</a>
-        <button type="submit" class="btn btn-text">Kapat</button>
-      </form>
+  <md-dialog id="reader">
+    <div slot="headline" id="r-meta" class="eyebrow"></div>
+    <div slot="content" class="reader">
+      <h2 id="r-title"></h2>
+      <p id="r-summary"></p>
     </div>
-  </dialog>
+    <div slot="actions">
+      <md-text-button id="r-close" value="close">Kapat</md-text-button>
+      <md-filled-tonal-button id="r-save">Kaydet</md-filled-tonal-button>
+      <md-filled-button id="r-open" target="_blank" rel="noopener noreferrer">Orijinali aç</md-filled-button>
+    </div>
+  </md-dialog>
 
-  <dialog id="add-dialog">
-    <form class="dlg" id="add-form">
-      <h2>Kaynak ekle</h2>
+  <md-dialog id="add-dialog">
+    <form slot="content" id="add-form" method="dialog" class="add-form">
       <p>RSS veya Atom bağlantısını yapıştırın.</p>
-      <label class="field">
-        <input id="add-url" type="text" inputmode="url" placeholder="https://site.com/feed.xml" autocomplete="off" required>
-      </label>
-      <p class="error" id="add-error" role="alert"></p>
-      <div class="actions">
-        <button type="button" class="btn btn-text" id="add-cancel">Vazgeç</button>
-        <button type="submit" class="btn btn-filled" id="add-submit">Ekle</button>
-      </div>
+      <md-outlined-text-field id="add-url" label="Bağlantı" type="url" required></md-outlined-text-field>
+      <p id="add-error" class="error" role="alert"></p>
     </form>
-  </dialog>
+    <div slot="actions">
+      <md-text-button id="add-cancel">Vazgeç</md-text-button>
+      <md-filled-button id="add-submit">Ekle</md-filled-button>
+    </div>
+    <div slot="headline">Kaynak ekle</div>
+  </md-dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js" defer></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
