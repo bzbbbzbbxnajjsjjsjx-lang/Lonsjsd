@@ -7,7 +7,7 @@ android {
     namespace = "com.example.rss"
     compileSdk {
         version = release(37) {
-            minorApiLevel = 0
+            minorApiLevel = 2
         }
     }
 
@@ -23,9 +23,13 @@ android {
         compose = true
     }
 
+    kotlin {
+        jvmToolchain(25)
+    }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 
 
