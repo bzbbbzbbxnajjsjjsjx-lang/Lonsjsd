@@ -8,7 +8,12 @@ package com.example.rss.ui
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -786,12 +791,24 @@ private fun BoxScope.IntroShape() {
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "intro-shape",
     )
+    // The shape turns slowly and steadily behind the content.
+    val turn by rememberInfiniteTransition(label = "intro-turn").animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 60_000, easing = LinearEasing)),
+        label = "intro-turn-angle",
+    )
     Box(
         modifier = Modifier
             .align(TopEnd)
             .offset(x = 96.dp, y = (-56).dp)
             .size(280.dp)
-            .graphicsLayer { scaleX = 0.4f + 0.6f * progress; scaleY = 0.4f + 0.6f * progress; alpha = 0.22f * progress }
+            .graphicsLayer {
+                scaleX = 0.4f + 0.6f * progress
+                scaleY = 0.4f + 0.6f * progress
+                alpha = 0.22f * progress
+                rotationZ = turn
+            }
             .clip(MorphShape(introMorph, progress))
             .background(MaterialTheme.colorScheme.primaryContainer),
     )

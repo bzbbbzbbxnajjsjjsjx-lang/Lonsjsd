@@ -39,8 +39,12 @@ android {
 
     buildTypes {
         release {
+            // Shrunk and optimized, so the app starts quickly. Signed with the debug key so the
+            // APK can be installed directly; a store build needs a real release key.
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
