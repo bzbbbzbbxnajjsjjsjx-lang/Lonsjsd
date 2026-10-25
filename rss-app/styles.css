@@ -321,3 +321,115 @@ md-navigation-bar {
   width: min(100%, 640px);
   transform: translateX(-50%);
 }
+
+/* ---------- Material 3 Expressive motion and shape ----------
+ * Springs come from the M3 motion tokens (spatial: stiffness 700 / 1400,
+ * damping ratio 0.9; effects: stiffness 3800, critically damped), turned into
+ * CSS linear() curves. Browsers without linear() fall back to the emphasized easing. */
+:root {
+  --spring-spatial-default: linear(0, 0.0182, 0.0646, 0.1289, 0.2035, 0.2826, 0.3622, 0.4393, 0.5121, 0.5794, 0.6406, 0.6954, 0.7439, 0.7863, 0.8231, 0.8548, 0.8817, 0.9045, 0.9236, 0.9394, 0.9525, 0.9633, 0.972, 0.979, 0.9845, 0.989, 0.9924, 0.995, 0.9971, 0.9985, 1);
+  --spring-spatial-fast: linear(0, 0.0177, 0.0628, 0.1255, 0.1985, 0.2761, 0.3545, 0.4308, 0.503, 0.57, 0.6311, 0.6861, 0.7349, 0.7779, 0.8153, 0.8475, 0.8752, 0.8986, 0.9184, 0.9349, 0.9486, 0.9599, 0.9691, 0.9765, 0.9825, 0.9873, 0.9911, 0.994, 0.9962, 0.9979, 1);
+  --spring-effects-fast: linear(0, 0.0388, 0.1273, 0.2366, 0.3492, 0.4558, 0.5517, 0.635, 0.7056, 0.7645, 0.8128, 0.8521, 0.8837, 0.9089, 0.929, 0.9448, 0.9572, 0.9669, 0.9745, 0.9804, 0.9849, 0.9885, 0.9912, 0.9933, 0.9949, 0.9961, 0.997, 0.9977, 0.9983, 0.9987, 1);
+}
+
+/* Corner radius is a registered property, so it can morph between shape tokens */
+@property --shape-r {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 20px;
+}
+
+.grid md-elevated-card,
+#hero md-filled-card {
+  --shape-r: var(--md-sys-shape-corner-lg-increased);
+  --md-elevated-card-container-shape: var(--shape-r);
+  --md-filled-card-container-shape: var(--shape-r);
+  transition:
+    --shape-r 0.6s var(--spring-spatial-default),
+    transform 0.5s var(--spring-spatial-fast);
+}
+
+.grid md-elevated-card:hover {
+  --shape-r: var(--md-sys-shape-corner-xl-increased);
+}
+
+.grid md-elevated-card:active {
+  --shape-r: var(--md-sys-shape-corner-sm);
+  transform: scale(0.97);
+}
+
+#hero md-filled-card {
+  --shape-r: var(--md-sys-shape-corner-xl-increased);
+}
+
+#hero md-filled-card:hover {
+  --shape-r: var(--md-sys-shape-corner-xl);
+}
+
+#hero md-filled-card:active {
+  --shape-r: var(--md-sys-shape-corner-md);
+  transform: scale(0.985);
+}
+
+md-icon-button,
+md-filled-button,
+md-filled-tonal-button,
+md-text-button,
+md-filter-chip {
+  transition: transform 0.4s var(--spring-effects-fast);
+}
+
+md-icon-button:active,
+md-filled-button:active,
+md-filled-tonal-button:active,
+md-text-button:active {
+  transform: scale(0.9);
+}
+
+/* Floating toolbar: sits above the navigation bar and folds away while the user scrolls down */
+.float-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  transform: translateX(-50%);
+  border-radius: var(--md-sys-shape-corner-xl);
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  transition:
+    border-radius 0.6s var(--spring-spatial-default),
+    padding 0.6s var(--spring-spatial-default);
+}
+
+.float-bar.collapsed {
+  border-radius: 999px;
+  padding: 6px 6px;
+}
+
+.float-bar .extra {
+  overflow: hidden;
+  max-width: 48px;
+  transition:
+    max-width 0.6s var(--spring-spatial-default),
+    opacity 0.3s var(--md-sys-motion-easing-emphasized),
+    transform 0.5s var(--spring-spatial-fast);
+}
+
+.float-bar.collapsed .extra {
+  max-width: 0;
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid md-elevated-card,
+  #hero md-filled-card,
+  .float-bar,
+  .float-bar .extra {
+    transition: none;
+  }
+}

@@ -254,8 +254,13 @@ function setEmpty(message) {
   empty.innerHTML = message ? `<span class="material-symbols-rounded">inbox</span>${esc(message)}` : '';
 }
 
+let shownView = null;
+
 function render() {
+  const changed = shownView !== state.view;
+  shownView = state.view;
   $('#title').textContent = TITLES[state.view];
+  $('#float').hidden = state.view === 'feeds';
   $('#nav').activeIndex = ['stream', 'saved', 'feeds'].indexOf(state.view);
   $('#add').hidden = state.view !== 'feeds';
   $('#chips').hidden = state.view !== 'stream';
@@ -275,6 +280,7 @@ function render() {
 
   $('#hero').innerHTML = isStream && items[0] ? hero(items[0]) : '';
   $('#grid').innerHTML = (isStream ? items.slice(1) : items).map(card).join('');
+  if (changed) springIn([...$('#hero').children, ...$('#grid').children]);
 
   if (!items.length) {
     setEmpty(
@@ -389,6 +395,40 @@ async function addFeed() {
   }
 }
 
+// Spring entrance: each card settles into place with the M3 spatial spring, staggered.
+function springIn(nodes) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !nodes.length) return;
+  const spring = getComputedStyle(document.documentElement).getPropertyValue('--spring-spatial-fast').trim();
+  nodes.forEach((node, i) => {
+    node.animate(
+      [
+        { opacity: 0, transform: 'translateY(28px) scale(0.94)' },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 520, delay: Math.min(i, 8) * 45, easing: spring || 'ease-out', fill: 'backwards' },
+    );
+  });
+}
+
+// The floating toolbar folds away while the user scrolls down and opens again on the way up.
+let lastScrollY = 0;
+function onScroll() {
+  const y = window.scrollY;
+  const dy = y - lastScrollY;
+  if (Math.abs(dy) > 6) {
+    $('#float').classList.toggle('collapsed', dy > 0 && y > 160);
+    lastScrollY = y;
+  }
+}
+
+function markAllRead() {
+  const ids = visibleItems().map((item) => item.id);
+  ids.forEach((id) => state.read.add(id));
+  store.set(KEYS.read, [...state.read].slice(-500));
+  render();
+  toast(ids.length ? 'Görünen yazılar okundu olarak işaretlendi' : 'İşaretlenecek yazı yok');
+}
+
 document.addEventListener('click', (event) => {
   const target = event.target;
 
@@ -422,6 +462,9 @@ $('#nav').addEventListener('navigation-bar-activated', (event) => {
 });
 
 $('#refresh').addEventListener('click', refresh);
+$('#tb-read').addEventListener('click', markAllRead);
+$('#tb-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+window.addEventListener('scroll', onScroll, { passive: true });
 $('#add').addEventListener('click', openAdd);
 $('#add-cancel').addEventListener('click', () => $('#add-dialog').close());
 $('#add-submit').addEventListener('click', addFeed);
