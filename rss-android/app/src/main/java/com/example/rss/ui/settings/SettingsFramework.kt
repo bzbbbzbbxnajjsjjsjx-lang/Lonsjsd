@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -97,7 +99,18 @@ fun SwitchRowContent(
         Spacer(Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1f)) { RowTitles(title, subtitle) }
         Spacer(Modifier.size(12.dp))
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            // On shows a check and off shows a cross inside the thumb, as in Material 3 Expressive switches.
+            thumbContent = {
+                Icon(
+                    imageVector = if (checked) Icons.Rounded.Check else Icons.Rounded.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
+        )
     }
 }
 
