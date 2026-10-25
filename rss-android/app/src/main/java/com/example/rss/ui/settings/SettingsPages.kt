@@ -9,6 +9,8 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.FormatSize
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Refresh
@@ -23,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalContext
 import com.example.rss.AppSettings
@@ -36,6 +39,8 @@ fun SettingsContent(
     onChange: ((AppSettings) -> AppSettings) -> Unit,
     onOpen: (SettingsDestination) -> Unit,
     onClearReadMarks: () -> Unit,
+    onExportOpml: () -> Unit,
+    onImportOpml: () -> Unit,
 ) {
     val context = LocalContext.current
     SettingsList {
@@ -137,6 +142,26 @@ fun SettingsContent(
                         )
                     }
                 }
+                group(key = "maintenance.opml", header = "Kaynaklar") {
+                    row("maintenance.exportOpml") { shape ->
+                        NavRowContent(
+                            shape = shape,
+                            icon = Icons.Rounded.FileDownload,
+                            title = "Kaynakları dışa aktar",
+                            subtitle = "OPML dosyası olarak kaydedin",
+                            onClick = onExportOpml,
+                        )
+                    }
+                    row("maintenance.importOpml") { shape ->
+                        NavRowContent(
+                            shape = shape,
+                            icon = Icons.Rounded.FileUpload,
+                            title = "Kaynakları içe aktar",
+                            subtitle = "OPML dosyasından kaynak ekleyin",
+                            onClick = onImportOpml,
+                        )
+                    }
+                }
                 group(key = "maintenance.reset", header = "Okundu işaretleri") {
                     row("maintenance.reset") { shape ->
                         NavRowContent(
@@ -173,7 +198,7 @@ fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSetting
             checked = settings.easyReading,
             onChange = { value -> onChange { it.copy(easyReading = value) } },
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
         ChoiceRowContent(
             shape = groupShape(1, 3),
             icon = Icons.Rounded.FormatSize,
@@ -183,7 +208,7 @@ fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSetting
             selected = settings.textScale,
             onSelect = { value -> onChange { it.copy(textScale = value) } },
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
         ChoiceRowContent(
             shape = groupShape(2, 3),
             icon = Icons.Rounded.RecordVoiceOver,

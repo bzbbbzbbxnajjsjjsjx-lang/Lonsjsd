@@ -75,6 +75,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -160,6 +168,18 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
 
+    // The system back gesture leaves a page first; it closes the app only from the Akış list.
+    BackHandler(enabled = state.screen != Screen.Stream) {
+        if (state.screen == Screen.Settings) vm.settingsBack() else vm.select(Screen.Stream)
+    }
+    // OPML files: the system picker chooses where to save or which file to read.
+    val exportOpml = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/xml")) { uri ->
+        uri?.let { context.contentResolver.openOutputStream(it)?.use { out -> out.write(vm.exportOpml().toByteArray()) } }
+    }
+    val importOpml = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { context.contentResolver.openInputStream(it)?.use { input -> vm.importOpml(input.bufferedReader().readText()) } }
+    }
+
     var toolbarExpanded by remember { mutableStateOf(true) }
     var showAddFeed by remember { mutableStateOf(false) }
     var openArticle by remember { mutableStateOf<Article?>(null) }
@@ -233,6 +253,8 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                     onChange = vm::updateSettings,
                     onOpen = vm::openSettingsPage,
                     onClearReadMarks = vm::clearReadMarks,
+                    onExportOpml = { exportOpml.launch("akis-kaynaklar.opml") },
+                    onImportOpml = { importOpml.launch(arrayOf("*/*")) },
                 )
                 else -> ArticleList(state, vm, listState, onOpen = { openArticle = it })
             }
@@ -394,6 +416,8 @@ private fun ArticleList(
 private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     val scale by pressScale(source)
+    val hasImage = article.image.isNotEmpty()
+    val ink = if (hasImage) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
 
     Card(
         onClick = onOpen,
@@ -405,35 +429,51 @@ private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
             .height(208.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
-            Text(
-                text = "${article.source} · ${relativeTime(article.dateMillis)}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = article.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = if (read) 0.7f else 1f),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (article.summary.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (hasImage) {
+                AsyncImage(
+                    model = article.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // A dark fade at the foot keeps the headline readable over any picture.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))),
+                )
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.Bottom,
+            ) {
                 Text(
-                    text = article.summary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
-                    maxLines = 2,
+                    text = "${article.source} · ${relativeTime(article.dateMillis)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ink.copy(alpha = 0.8f),
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = article.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ink.copy(alpha = if (read) 0.7f else 1f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (article.summary.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = article.summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ink.copy(alpha = 0.85f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
@@ -461,6 +501,18 @@ private fun ArticleCard(
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, top = 18.dp, end = 12.dp, bottom = 10.dp)) {
+            if (article.image.isNotEmpty()) {
+                AsyncImage(
+                    model = article.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(16.dp)),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
             Text(
                 text = "${article.source} · ${relativeTime(article.dateMillis)}",
                 style = MaterialTheme.typography.labelMedium,
@@ -739,6 +791,17 @@ private fun ReaderSheet(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                        if (article.image.isNotEmpty()) {
+                            AsyncImage(
+                                model = article.image,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                                    .clip(RoundedCornerShape(24.dp)),
+                            )
+                        }
                         Text(
                             text = article.title,
                             style = MaterialTheme.typography.headlineMedium,

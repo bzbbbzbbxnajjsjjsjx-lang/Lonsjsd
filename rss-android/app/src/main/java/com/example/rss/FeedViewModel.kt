@@ -85,6 +85,24 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         if (parent != null) it.copy(settingsPage = parent) else it.copy(screen = Screen.Stream)
     }
 
+    fun exportOpml(): String = Opml.export(_state.value.feeds)
+
+    /** Adds every feed of an OPML file that is not already subscribed, then refreshes. */
+    fun importOpml(xml: String) {
+        val known = _state.value.feeds.map { it.url }.toMutableSet()
+        val added = Opml.parse(xml)
+            .filter { (_, url) -> known.add(url) }
+            .map { (title, url) -> Feed(UUID.randomUUID().toString(), title, url) }
+        if (added.isEmpty()) {
+            _state.update { it.copy(message = "Eklenecek yeni kaynak yok") }
+            return
+        }
+        val feeds = _state.value.feeds + added
+        store.saveFeeds(feeds)
+        _state.update { it.copy(feeds = feeds, message = "${added.size} kaynak eklendi") }
+        refresh()
+    }
+
     fun clearReadMarks() {
         store.saveRead(emptySet())
         _state.update { it.copy(read = emptySet(), message = "Okundu işaretleri sıfırlandı") }

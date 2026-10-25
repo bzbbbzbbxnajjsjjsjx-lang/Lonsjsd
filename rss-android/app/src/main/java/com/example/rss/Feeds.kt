@@ -102,7 +102,7 @@ object FeedParser {
                                 title = title,
                                 link = link,
                                 summary = stripHtml(current["summary"].orEmpty()).take(320),
-                                image = image,
+                                image = image.ifEmpty { firstImageIn(current["summary"].orEmpty()) },
                                 dateMillis = date,
                                 feedId = feed.id,
                                 source = channelTitle ?: feed.title,
@@ -134,6 +134,10 @@ object FeedParser {
 
     private fun parseDate(raw: String): Long? = runCatching { rfc1123.parse(raw)?.time }.getOrNull()
         ?: runCatching { iso8601.parse(raw.take(19))?.time }.getOrNull()
+
+    /** The address of the first picture in an HTML fragment, or empty. */
+    fun firstImageIn(html: String): String =
+        Regex("""<img[^>]+src\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1).orEmpty()
 
     /** Removes markup from a summary, keeping the readable text. */
     fun stripHtml(html: String): String =
@@ -283,4 +287,38 @@ object FeedDiscovery {
         val target = href.find(link)?.groupValues?.get(1) ?: return null
         return runCatching { java.net.URI(base).resolve(target).toString() }.getOrNull()
     }
+}
+
+/** OPML: the standard list of subscriptions, exchanged with other feed readers. */
+object Opml {
+    fun export(feeds: List<Feed>): String = buildString {
+        append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        append("<opml version=\"2.0\">\n  <head><title>Akış kaynakları</title></head>\n  <body>\n")
+        feeds.forEach { feed ->
+            append("    <outline type=\"rss\" text=\"${escape(feed.title)}\" title=\"${escape(feed.title)}\" xmlUrl=\"${escape(feed.url)}\"/>\n")
+        }
+        append("  </body>\n</opml>\n")
+    }
+
+    /** The (title, feed address) pairs of every outline that names a feed. */
+    fun parse(xml: String): List<Pair<String, String>> {
+        val parser = Xml.newPullParser()
+        parser.setInput(StringReader(xml))
+        val result = mutableListOf<Pair<String, String>>()
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            if (event == XmlPullParser.START_TAG && parser.name == "outline") {
+                val url = parser.getAttributeValue(null, "xmlUrl")
+                if (!url.isNullOrBlank()) {
+                    val title = parser.getAttributeValue(null, "title") ?: parser.getAttributeValue(null, "text") ?: url
+                    result += title to url
+                }
+            }
+            event = parser.next()
+        }
+        return result
+    }
+
+    private fun escape(value: String): String =
+        value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;")
 }
