@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6750a4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
+  <title>Akış · RSS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300..900&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="progress" id="progress" hidden></div>
+
+  <div class="app">
+    <header class="top">
+      <h1 id="title">Akış</h1>
+      <button class="icon-btn" id="refresh" aria-label="Yenile"><span class="ms">refresh</span></button>
+    </header>
+
+    <main>
+      <div class="chips" id="chips" role="group" aria-label="Kaynak filtresi"></div>
+      <div id="hero"></div>
+      <div class="grid" id="grid"></div>
+      <div class="list" id="feeds" hidden></div>
+      <p class="empty" id="empty" hidden></p>
+    </main>
+  </div>
+
+  <nav class="nav" aria-label="Gezinme">
+    <button data-view="stream" aria-current="page"><span class="pill"><span class="ms">feed</span></span>Akış</button>
+    <button data-view="saved"><span class="pill"><span class="ms">bookmark</span></span>Kaydedilen</button>
+    <button data-view="feeds"><span class="pill"><span class="ms">rss_feed</span></span>Kaynaklar</button>
+  </nav>
+
+  <button class="fab" id="add" hidden><span class="ms">add</span>Kaynak ekle</button>
+
+  <dialog id="article">
+    <div class="dlg">
+      <div class="eyebrow" id="a-meta"></div>
+      <h2 id="a-title"></h2>
+      <p class="body" id="a-summary"></p>
+      <form method="dialog" class="actions">
+        <button type="button" class="btn btn-tonal" id="a-save"></button>
+        <a class="btn btn-filled" id="a-open" target="_blank" rel="noopener noreferrer">Orijinali aç</a>
+        <button type="submit" class="btn btn-text">Kapat</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="add-dialog">
+    <form class="dlg" id="add-form">
+      <h2>Kaynak ekle</h2>
+      <p>RSS veya Atom bağlantısını yapıştırın.</p>
+      <label class="field">
+        <input id="add-url" type="text" inputmode="url" placeholder="https://site.com/feed.xml" autocomplete="off" required>
+      </label>
+      <p class="error" id="add-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn btn-text" id="add-cancel">Vazgeç</button>
+        <button type="submit" class="btn btn-filled" id="add-submit">Ekle</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
