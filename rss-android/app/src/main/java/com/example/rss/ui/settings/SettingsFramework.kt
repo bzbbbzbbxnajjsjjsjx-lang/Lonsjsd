@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -205,6 +206,10 @@ class SettingsListScope internal constructor(private val lazy: LazyListScope) {
             lazy.item(key = "$key#header") { SectionLabel(header) }
         }
         built.forEachIndexed { index, row ->
+            if (index > 0) {
+                // The small gap between rows of one segmented list, as in Material 3 Expressive.
+                lazy.item(key = "$key#gap$index") { Spacer(Modifier.height(ListItemDefaults.SegmentedGap)) }
+            }
             lazy.item(key = row.key) {
                 row.content(groupShape(index, built.size))
             }
