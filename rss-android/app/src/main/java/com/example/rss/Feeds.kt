@@ -140,12 +140,31 @@ object FeedParser {
         Regex("""<img[^>]+src\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1).orEmpty()
 
     /** Removes markup from a summary, keeping the readable text. */
-    fun stripHtml(html: String): String =
-        html.replace(Regex("<[^>]*>"), " ")
-            .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
-            .replace("&lt;", "<").replace("&gt;", ">")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+    fun stripHtml(html: String): String {
+        val withoutCode = comment.replace(scriptBlock.replace(html, " "), " ")
+        return decodeEntities(tag.replace(withoutCode, " ")).replace(Regex("\\s+"), " ").trim()
+    }
+
+    private val scriptBlock = Regex("(?is)<(script|style|noscript)\\b.*?</\\1\\s*>")
+    private val comment = Regex("(?s)<!--.*?-->")
+
+    /** A tag, including quoted attributes that contain '>' characters. */
+    private val tag = Regex("""<[a-zA-Z/!][^>"']*(?:(?:"[^"]*"|'[^']*')[^>"']*)*>""")
+
+    private val namedEntities = mapOf(
+        "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'", "nbsp" to " ",
+        "ndash" to "–", "mdash" to "—", "hellip" to "…", "ldquo" to "“", "rdquo" to "”", "lsquo" to "‘", "rsquo" to "’",
+    )
+
+    private fun decodeEntities(text: String): String =
+        Regex("&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);").replace(text) { m ->
+            val name = m.groupValues[1]
+            when {
+                name.startsWith("#x") -> name.substring(2).toIntOrNull(16)?.let { String(Character.toChars(it)) } ?: m.value
+                name.startsWith("#") -> name.substring(1).toIntOrNull()?.let { String(Character.toChars(it)) } ?: m.value
+                else -> namedEntities[name] ?: m.value
+            }
+        }
 }
 
 /** Fetches a feed over HTTP. */
@@ -255,14 +274,15 @@ class FeedStore(private val prefs: android.content.SharedPreferences) {
 
 /** Pulls the readable text out of an article page: the paragraphs of the body, without page chrome. */
 object FullText {
-    private val chrome = Regex("(?is)<(script|style|nav|header|footer|aside|form|svg|noscript)[^>]*>.*?</\\1>")
-    private val paragraph = Regex("(?is)<p[^>]*>(.*?)</p>")
+    private val chrome = Regex("(?is)<(script|style|nav|header|footer|aside|form|svg|noscript)\\b.*?</\\1\\s*>")
+    private val paragraph = Regex("""(?is)<p\b(?:[^>"']|"[^"]*"|'[^']*')*>(.*?)</p\s*>""")
+    private val codeChars = Regex("""[{};=<>]|\(\)""")
 
     fun extract(html: String): String {
         val body = chrome.replace(html, " ")
         return paragraph.findAll(body)
             .map { FeedParser.stripHtml(it.groupValues[1]) }
-            .filter { it.length >= 40 }
+            .filter { it.length >= 40 && codeChars.findAll(it).count() <= 2 }
             .joinToString("\n\n")
     }
 }

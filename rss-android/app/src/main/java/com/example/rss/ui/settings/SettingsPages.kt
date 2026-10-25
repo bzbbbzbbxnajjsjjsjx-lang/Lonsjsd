@@ -86,7 +86,7 @@ fun SettingsContent(
                             shape = shape,
                             icon = Icons.Rounded.AutoStories,
                             title = "Kolay okuma",
-                            subtitle = "Satır ve harf aralığını artırır",
+                            subtitle = "Satır aralığını artırır ve kelimelerin başını kalın yazar",
                             checked = settings.easyReading,
                             onChange = { value -> onChange { it.copy(easyReading = value) } },
                         )
@@ -192,63 +192,45 @@ fun SettingsContent(
 fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         SectionLabel("Yazı")
-        SettingsGroupColumn(count = 2) { index ->
-            if (index == 0) {
-                SwitchRowContent(
-                    shape = groupShape(0, 2),
-                    icon = Icons.Rounded.AutoStories,
-                    title = "Kolay okuma",
-                    subtitle = "Satır ve harf aralığını artırır",
-                    checked = settings.easyReading,
-                    onChange = { value -> onChange { it.copy(easyReading = value) } },
-                )
-            } else {
-                ChoiceRowContent(
-                    shape = groupShape(1, 2),
-                    icon = Icons.Rounded.FormatSize,
-                    title = "Yazı boyutu",
-                    subtitle = "Yazının büyüklüğü",
-                    options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
-                    selected = settings.textScale,
-                    onSelect = { value -> onChange { it.copy(textScale = value) } },
-                )
-            }
-        }
+        SwitchRowContent(
+            shape = groupShape(0, 2),
+            icon = Icons.Rounded.AutoStories,
+            title = "Kolay okuma",
+            subtitle = "Satır aralığını artırır ve kelimelerin başını kalın yazar",
+            checked = settings.easyReading,
+            onChange = { value -> onChange { it.copy(easyReading = value) } },
+        )
+        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
+        ChoiceRowContent(
+            shape = groupShape(1, 2),
+            icon = Icons.Rounded.FormatSize,
+            title = "Yazı boyutu",
+            subtitle = "Yazının büyüklüğü",
+            options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
+            selected = settings.textScale,
+            onSelect = { value -> onChange { it.copy(textScale = value) } },
+        )
         SectionLabel("Sesli okuma")
-        SettingsGroupColumn(count = 1) {
-            ChoiceRowContent(
-                shape = groupShape(0, 1),
-                icon = Icons.Rounded.RecordVoiceOver,
-                title = "Okuma hızı",
-                subtitle = "Yazıyı sesli okurken",
-                options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
-                selected = settings.speechRate,
-                onSelect = { value -> onChange { it.copy(speechRate = value) } },
-            )
-        }
+        ChoiceRowContent(
+            shape = groupShape(0, 1),
+            icon = Icons.Rounded.RecordVoiceOver,
+            title = "Okuma hızı",
+            subtitle = "Yazıyı sesli okurken",
+            options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
+            selected = settings.speechRate,
+            onSelect = { value -> onChange { it.copy(speechRate = value) } },
+        )
     }
 }
 
-/** Stacks [count] rows with the segmented gap between them. */
-@Composable
-private fun SettingsGroupColumn(count: Int, row: @Composable (Int) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        repeat(count) { index ->
-            if (index > 0) Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
-            row(index)
-        }
-    }
-}
-
-/** Article text style with the reader's size and easy-reading choices applied. */
+/** Article text style: the size choice sets the size; easy reading only opens the line spacing. */
 @Composable
 fun readingStyle(settings: AppSettings): TextStyle {
     val base = MaterialTheme.typography.bodyLarge
     val size = base.fontSize * settings.textScale
     return base.copy(
         fontSize = size,
-        lineHeight = if (settings.easyReading) size * 1.8f else size * 1.5f,
-        letterSpacing = if (settings.easyReading) 0.4.sp else base.letterSpacing,
+        lineHeight = if (settings.easyReading) size * 1.75f else size * 1.5f,
     )
 }
 

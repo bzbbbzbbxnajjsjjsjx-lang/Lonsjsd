@@ -72,6 +72,7 @@ private fun RowSurface(shape: Shape, content: @Composable () -> Unit) {
     }
 }
 
+
 @Composable
 private fun RowTitles(title: String, subtitle: String?) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -211,13 +212,8 @@ class SettingsListScope internal constructor(private val lazy: LazyListScope) {
             lazy.item(key = "$key#header") { SectionLabel(header) }
         }
         built.forEachIndexed { index, row ->
-            if (index > 0) {
-                // The small gap between rows of one segmented list, as in Material 3 Expressive.
-                lazy.item(key = "$key#gap$index") { Spacer(Modifier.height(ListItemDefaults.SegmentedGap)) }
-            }
-            lazy.item(key = row.key) {
-                row.content(groupShape(index, built.size))
-            }
+            if (index > 0) lazy.item(key = "$key#gap$index") { Spacer(Modifier.height(ListItemDefaults.SegmentedGap)) }
+            lazy.item(key = row.key) { row.content(groupShape(index, built.size)) }
         }
     }
 }

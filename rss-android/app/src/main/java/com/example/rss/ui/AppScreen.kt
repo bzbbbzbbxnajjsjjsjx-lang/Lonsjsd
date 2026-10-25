@@ -134,7 +134,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment.Companion.TopEnd
 import androidx.compose.ui.unit.Dp
@@ -151,6 +150,7 @@ import com.example.rss.ui.settings.ReadingOptions
 import com.example.rss.ui.settings.SectionLabel
 import com.example.rss.ui.settings.SettingsContent
 import com.example.rss.ui.settings.readingStyle
+import com.example.rss.ui.settings.readingText
 
 /** Cards use calm, consistent corners. Only the save badge morphs. */
 private val HeroShape = RoundedCornerShape(32.dp)
@@ -259,21 +259,6 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                     onImportOpml = { importOpml.launch(arrayOf("*/*")) },
                 )
                 else -> ArticleList(state, vm, listState, onOpen = { openArticle = it })
-            }
-
-            // A wavy line shows how far down the list the reader is. It opens while scrolling down
-            // and folds away when the list is back at the top.
-            AnimatedVisibility(
-                visible = listState.firstVisibleItemIndex > 0,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 24.dp),
-            ) {
-                val total = listState.layoutInfo.totalItemsCount.coerceAtLeast(1)
-                LinearWavyProgressIndicator(
-                    progress = { (listState.firstVisibleItemIndex.toFloat() / total).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                )
             }
 
             // Snackbars sit above the toolbar, never under it.
@@ -818,7 +803,7 @@ private fun ReaderSheet(
                             )
                         } else {
                             Text(
-                                text = body,
+                                text = readingText(body, settings.easyReading),
                                 style = readingStyle(settings),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )

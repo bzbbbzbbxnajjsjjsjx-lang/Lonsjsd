@@ -2,6 +2,7 @@ package com.example.rss
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FullTextTest {
@@ -30,5 +31,21 @@ class FullTextTest {
         )
         assertFalse(text.contains("menüsü"))
         assertFalse(text.contains("Telif"))
+    }
+
+    @Test
+    fun attributeCodeIsNeverShownAsText() {
+        val html = """
+            <article>
+              <p onclick="a').click(); event.preventDefault();">Tam Boyutta Gör yaklaşık 30 yıllık geçmişe sahip açık kaynaklı bir programlama dili.</p>
+              <p>Bu cümle normal bir paragraftır ve yazının gerçek metnine aittir.</p>
+            </article>
+        """.trimIndent()
+
+        val text = FullText.extract(html)
+
+        assertFalse(text.contains("click"))
+        assertFalse(text.contains("preventDefault"))
+        assertTrue(text.contains("Tam Boyutta"))
     }
 }
