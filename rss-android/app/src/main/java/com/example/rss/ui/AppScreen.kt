@@ -127,6 +127,10 @@ import com.example.rss.Feed
 import com.example.rss.FeedViewModel
 import com.example.rss.Screen
 import com.example.rss.UiState
+import com.example.rss.ui.settings.ReadingOptions
+import com.example.rss.ui.settings.SectionLabel
+import com.example.rss.ui.settings.SettingsContent
+import com.example.rss.ui.settings.readingStyle
 
 /** Cards use calm, consistent corners. Only the save badge morphs. */
 private val HeroShape = RoundedCornerShape(32.dp)
@@ -176,11 +180,16 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text(state.screen.title, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        if (state.screen == Screen.Settings) state.settingsPage.title else state.screen.title,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (state.screen == Screen.Settings) {
-                        IconButton(onClick = { vm.select(Screen.Stream) }) {
+                        IconButton(onClick = vm::settingsBack) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri")
                         }
                     }
@@ -208,7 +217,13 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
 
             when (state.screen) {
                 Screen.Sources -> SourcesList(state, vm, listState)
-                Screen.Settings -> SettingsScreen(state.settings, vm::updateSettings)
+                Screen.Settings -> SettingsContent(
+                    page = state.settingsPage,
+                    settings = state.settings,
+                    onChange = vm::updateSettings,
+                    onOpen = vm::openSettingsPage,
+                    onClearReadMarks = vm::clearReadMarks,
+                )
                 else -> ArticleList(state, vm, listState, onOpen = { openArticle = it })
             }
 
@@ -785,176 +800,4 @@ private fun BoxScope.IntroShape() {
 private fun relativeTime(millis: Long?): String {
     if (millis == null) return ""
     return DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
-}
-
-/** Text size, easy reading and speech speed. Used in the reader and on the settings screen. */
-@Composable
-private fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
-    SettingsGroup {
-        SwitchRow(
-            icon = Icons.Rounded.AutoStories,
-            title = "Kolay okuma",
-            subtitle = "Satır ve harf aralığını artırır",
-            checked = settings.easyReading,
-            onChange = { value -> onChange { it.copy(easyReading = value) } },
-        )
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-        SettingRow(icon = Icons.Rounded.FormatSize, title = "Yazı boyutu", subtitle = "Yazının büyüklüğü") {
-            SegmentedChoice(
-                options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
-                selected = settings.textScale,
-                onSelect = { value -> onChange { it.copy(textScale = value) } },
-            )
-        }
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-        SettingRow(icon = Icons.Rounded.RecordVoiceOver, title = "Sesli okuma hızı", subtitle = "Yazıyı sesli okurken") {
-            SegmentedChoice(
-                options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
-                selected = settings.speechRate,
-                onSelect = { value -> onChange { it.copy(speechRate = value) } },
-            )
-        }
-    }
-}
-
-/** Article text style with the reader's size and easy-reading choices applied. */
-@Composable
-private fun readingStyle(settings: AppSettings): TextStyle {
-    val base = MaterialTheme.typography.bodyLarge
-    val size = base.fontSize * settings.textScale
-    return base.copy(
-        fontSize = size,
-        lineHeight = if (settings.easyReading) size * 1.8f else size * 1.5f,
-        letterSpacing = if (settings.easyReading) 0.4.sp else base.letterSpacing,
-    )
-}
-
-/** The settings screen: grouped rounded cards, each with a section label above it. */
-@Composable
-private fun SettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { SectionLabel("Görünüm") }
-        item {
-            SettingsGroup {
-                SettingRow(icon = Icons.Rounded.DarkMode, title = "Tema", subtitle = "Sistem, açık veya koyu") {
-                    SegmentedChoice(
-                        options = listOf("system" to "Sistem", "light" to "Açık", "dark" to "Koyu"),
-                        selected = settings.themeMode,
-                        onSelect = { value -> onChange { it.copy(themeMode = value) } },
-                    )
-                }
-            }
-        }
-
-        item { SectionLabel("Okuma") }
-        item {
-            SwitchRow(
-                icon = Icons.Rounded.VisibilityOff,
-                title = "Okunmuşları gizle",
-                subtitle = "Okuduğunuz yazılar akışta görünmez",
-                checked = settings.hideRead,
-                onChange = { value -> onChange { it.copy(hideRead = value) } },
-            )
-        }
-        item { ReadingOptions(settings, onChange) }
-
-        item { SectionLabel("Bakım") }
-        item {
-            SettingsGroup {
-                SwitchRow(
-                    icon = Icons.Rounded.DoneAll,
-                    title = "7 günden eski yazıları okundu yap",
-                    subtitle = "Yenilemede eski yazılar kendiliğinden kapanır",
-                    checked = settings.autoReadOld,
-                    onChange = { value -> onChange { it.copy(autoReadOld = value) } },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, top = 12.dp),
-    )
-}
-
-/** One rounded card that holds a group of related settings rows. */
-@Composable
-private fun SettingsGroup(content: @Composable () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
-    }
-}
-
-@Composable
-private fun SettingRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    trailing: @Composable () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        trailing()
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.size(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.size(12.dp))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-/** Connected segmented buttons for choosing one of a few values. */
-@Composable
-private fun <T> SegmentedChoice(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, (value, label) ->
-            SegmentedButton(
-                selected = value == selected,
-                onClick = { onSelect(value) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-            ) {
-                Text(label)
-            }
-        }
-    }
 }

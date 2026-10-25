@@ -31,6 +31,7 @@ data class UiState(
     val fullText: Map<String, String> = emptyMap(),
     val loadingTextId: String? = null,
     val settings: AppSettings = AppSettings(),
+    val settingsPage: SettingsDestination = SettingsDestination.Home,
 ) {
     /** Articles the current screen shows, newest first. */
     val visible: List<Article>
@@ -69,7 +70,25 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun select(screen: Screen) = _state.update { it.copy(screen = screen) }
+    fun select(screen: Screen) = _state.update {
+        it.copy(
+            screen = screen,
+            settingsPage = if (screen == Screen.Settings) SettingsDestination.Home else it.settingsPage,
+        )
+    }
+
+    fun openSettingsPage(page: SettingsDestination) = _state.update { it.copy(settingsPage = page) }
+
+    /** Goes up one settings page, or leaves Settings from its root. */
+    fun settingsBack() = _state.update {
+        val parent = it.settingsPage.parent
+        if (parent != null) it.copy(settingsPage = parent) else it.copy(screen = Screen.Stream)
+    }
+
+    fun clearReadMarks() {
+        store.saveRead(emptySet())
+        _state.update { it.copy(read = emptySet(), message = "Okundu işaretleri sıfırlandı") }
+    }
 
     fun filter(feedId: String?) = _state.update { it.copy(filterFeedId = feedId) }
 

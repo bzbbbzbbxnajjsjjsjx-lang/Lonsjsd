@@ -105,8 +105,10 @@ class AppScreenTest {
 
         rule.onNodeWithContentDescription("Ayarlar").performClick()
         rule.waitForIdle()
+        rule.onNodeWithText("Okuma").performClick()
+        rule.waitForIdle()
         rule.onNodeWithText("Okunmuşları gizle").assertIsDisplayed()
-        rule.onNodeWithText("Sesli okuma hızı").assertIsDisplayed()
+        rule.onNodeWithText("Okuma hızı").assertIsDisplayed()
         screenshot("settings")
     }
 
