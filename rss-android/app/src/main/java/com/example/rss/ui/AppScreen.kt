@@ -64,7 +64,11 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -662,6 +666,10 @@ private fun AddFeedDialog(onDismiss: () -> Unit, onAdd: (String, (String) -> Uni
     )
 }
 
+/**
+ * The article reader: a full-screen page. The text scrolls, the action bar folds away while the
+ * text moves down, and the reading options open from their own button in a separate sheet.
+ */
 @Composable
 private fun ReaderSheet(
     article: Article,
@@ -674,110 +682,130 @@ private fun ReaderSheet(
     onOpenSource: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speaker = rememberSpeaker(settings.speechRate)
     var speaking by remember { mutableStateOf(false) }
-    val body = fullText?.takeIf { it.isNotBlank() } ?: article.summary.ifEmpty { "Bu yazı için metin alınamadı. Tam yazı için orijinali açın." }
+    var showOptions by remember { mutableStateOf(false) }
+    var actionsExpanded by remember { mutableStateOf(true) }
     val scroll = rememberScrollState()
-    // The options panel folds away while the article moves down and opens again on the way up.
-    var optionsOpen by remember { mutableStateOf(true) }
+    val body = fullText?.takeIf { it.isNotBlank() } ?: article.summary.ifEmpty {
+        "Bu yazı için metin alınamadı. Tam yazı için orijinali açın."
+    }
 
     DisposableEffect(Unit) { onDispose { speaker?.stop() } }
 
     LaunchedEffect(scroll) {
         var last = 0
         snapshotFlow { scroll.value }.collect { value ->
-            if (value > last + 6 && value > 120) optionsOpen = false
-            if (value < last - 6) optionsOpen = true
+            if (value > last + 6 && value > 120) actionsExpanded = false
+            if (value < last - 6) actionsExpanded = true
             last = value
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // The article itself: it scrolls, and the options panel below stays separate from it.
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(scroll)
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Text(
-                    text = "${article.source} · ${relativeTime(article.dateMillis)}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(article.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                if (loadingText) {
-                    Text(
-                        "Tam metin yükleniyor…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(body, style = readingStyle(settings), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FilledTonalButton(
-                        onClick = {
-                            if (speaking) {
-                                speaker?.stop()
-                                speaking = false
-                            } else {
-                                speaker?.speak(body)
-                                speaking = speaker != null
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.surface,
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                article.source,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri")
                             }
                         },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            if (speaking) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.size(6.dp))
-                        Text(if (speaking) "Durdur" else "Sesli oku")
-                    }
-                    Button(onClick = onOpenSource, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.size(6.dp))
-                        Text("Orijinali aç")
-                    }
-                }
-                FilledTonalButton(onClick = onToggleSave, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                     )
-                    Spacer(Modifier.size(6.dp))
-                    Text(if (saved) "Kaydedildi" else "Kaydet")
+                },
+            ) { padding ->
+                Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scroll)
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 8.dp, bottom = 140.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            text = relativeTime(article.dateMillis),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = article.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (loadingText) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                "Tam metin yükleniyor…",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Text(
+                                text = body,
+                                style = readingStyle(settings),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+
+                    HorizontalFloatingToolbar(
+                        expanded = actionsExpanded,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    ) {
+                        IconToggleButton(checked = saved, onCheckedChange = { onToggleSave() }) {
+                            Icon(
+                                if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                                contentDescription = if (saved) "Kayıttan çıkar" else "Kaydet",
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                if (speaking) {
+                                    speaker?.stop()
+                                    speaking = false
+                                } else {
+                                    speaker?.speak(body)
+                                    speaking = speaker != null
+                                }
+                            },
+                        ) {
+                            Icon(
+                                if (speaking) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                                contentDescription = if (speaking) "Durdur" else "Sesli oku",
+                            )
+                        }
+                        IconButton(onClick = { showOptions = true }) {
+                            Icon(Icons.Rounded.FormatSize, contentDescription = "Okuma ayarları")
+                        }
+                        IconButton(onClick = onOpenSource) {
+                            Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = "Orijinali aç")
+                        }
+                    }
                 }
             }
+        }
+    }
 
-            // Reading options: their own panel at the foot of the sheet, not part of the article.
-            AnimatedVisibility(
-                visible = optionsOpen,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+    if (showOptions) {
+        ModalBottomSheet(onDismissRequest = { showOptions = false }) {
+            Column(
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)) {
-                        Text(
-                            "Okuma ayarları",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
-                        )
-                        ReadingOptions(settings, onChange)
-                    }
-                }
+                Text("Okuma ayarları", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                ReadingOptions(settings, onChange)
             }
         }
     }

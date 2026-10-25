@@ -120,6 +120,8 @@ class AppScreenTest {
 
         rule.onNodeWithText("Katı hal bataryalar seri üretime girdi").performClick()
         rule.waitForIdle()
+        rule.onNodeWithContentDescription("Okuma ayarları").performClick()
+        rule.waitForIdle()
         rule.onNodeWithText("Kolay okuma").assertIsDisplayed()
         rule.onNodeWithText("Yazı boyutu").assertIsDisplayed()
         screenshot("reader")
