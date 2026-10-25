@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-enum class Screen(val title: String) { Stream("Akış"), Saved("Kaydedilenler"), Sources("Kaynaklar") }
+enum class Screen(val title: String) { Stream("Akış"), Saved("Kaydedilenler"), Sources("Kaynaklar"), Settings("Ayarlar") }
 
 data class UiState(
     val screen: Screen = Screen.Stream,
@@ -27,14 +27,23 @@ data class UiState(
     val filterFeedId: String? = null,
     val loading: Boolean = false,
     val message: String? = null,
+    /** Full article text, by article id, once the page has been read. */
+    val fullText: Map<String, String> = emptyMap(),
+    val loadingTextId: String? = null,
+    val settings: AppSettings = AppSettings(),
 ) {
     /** Articles the current screen shows, newest first. */
     val visible: List<Article>
         get() = when (screen) {
             Screen.Saved -> saved.values.sortedByDescending { it.dateMillis ?: 0L }
+            Screen.Settings -> emptyList()
             else -> {
                 val ids = feeds.map { it.id }.toSet()
-                articles.filter { it.feedId in ids && (filterFeedId == null || it.feedId == filterFeedId) }
+                articles.filter {
+                    it.feedId in ids &&
+                        (filterFeedId == null || it.feedId == filterFeedId) &&
+                        !(settings.hideRead && it.id in read)
+                }
             }
         }
 }
@@ -51,6 +60,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             articles = store.articles(),
             saved = store.saved().associateBy { it.id },
             read = store.read(),
+            settings = store.settings(),
         ),
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -64,6 +74,31 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     fun filter(feedId: String?) = _state.update { it.copy(filterFeedId = feedId) }
 
     fun dismissMessage() = _state.update { it.copy(message = null) }
+
+    fun updateSettings(change: (AppSettings) -> AppSettings) {
+        val next = change(_state.value.settings)
+        store.saveSettings(next)
+        _state.update { it.copy(settings = next) }
+    }
+
+    /** Reads the whole article page once and keeps the text for the reader. */
+    fun loadFullText(article: Article) {
+        val current = _state.value
+        if (current.fullText.containsKey(article.id) || current.loadingTextId == article.id) return
+        _state.update { it.copy(loadingTextId = article.id) }
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                runCatching { FullText.extract(FeedClient.fetch(article.link)) }.getOrNull()
+            }
+            _state.update {
+                it.copy(
+                    loadingTextId = null,
+                    fullText = if (text.isNullOrBlank()) it.fullText else it.fullText + (article.id to text),
+                    message = if (text.isNullOrBlank()) "Tam metin alınamadı" else it.message,
+                )
+            }
+        }
+    }
 
     fun refresh() {
         val feeds = _state.value.feeds
@@ -92,6 +127,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
             val merged = mergeArticles(fresh)
             val articles = if (fresh.isNotEmpty()) merged else _state.value.articles
+            if (_state.value.settings.autoReadOld) {
+                val weekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+                val old = articles.filter { (it.dateMillis ?: 0L) < weekAgo }.map { it.id }
+                if (old.isNotEmpty()) markRead(old)
+            }
             store.saveFeeds(renamed)
             if (fresh.isNotEmpty()) store.saveArticles(articles)
 

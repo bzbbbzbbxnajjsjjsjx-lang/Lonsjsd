@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Rss" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Splash keeps the app's own surface color, so there is never a white flash before the first frame. -->
+    <style name="Theme.Rss.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Rss</item>
+    </style>
+
+    <style name="Theme.Rss" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
 </resources>

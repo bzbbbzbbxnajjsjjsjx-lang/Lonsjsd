@@ -26,9 +26,13 @@ import androidx.graphics.shapes.toPath
  * motion scheme, whose springs drive every animation the components run.
  */
 @Composable
-fun RssTheme(content: @Composable () -> Unit) {
+fun RssTheme(themeMode: String = "system", content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val dark = isSystemInDarkTheme()
+    val dark = when (themeMode) {
+        "dark" -> true
+        "light" -> false
+        else -> isSystemInDarkTheme()
+    }
     val colors: ColorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

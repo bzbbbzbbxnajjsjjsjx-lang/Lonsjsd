@@ -86,7 +86,40 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.speech.tts.TextToSpeech
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.FormatSize
+import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import com.example.rss.AppSettings
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.Alignment.Companion.TopEnd
+import androidx.compose.ui.unit.Dp
 import androidx.graphics.shapes.Morph
+import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.rss.Article
@@ -101,6 +134,9 @@ private val CardShape = RoundedCornerShape(24.dp)
 
 /** The save badge morphs from a rounded square into a cookie when the article is saved. */
 private val saveMorph = Morph(MaterialShapes.Square, MaterialShapes.Cookie9Sided)
+
+/** The big decorative shape that grows in on launch: a pill that settles into a 12-sided cookie. */
+private val introMorph = Morph(MaterialShapes.Pill, MaterialShapes.Cookie12Sided)
 
 @Composable
 fun AppScreen(vm: FeedViewModel = viewModel()) {
@@ -142,9 +178,21 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
             LargeTopAppBar(
                 title = { Text(state.screen.title, fontWeight = FontWeight.Bold) },
                 scrollBehavior = scrollBehavior,
+                navigationIcon = {
+                    if (state.screen == Screen.Settings) {
+                        IconButton(onClick = { vm.select(Screen.Stream) }) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri")
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = vm::refresh, enabled = !state.loading) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "Yenile")
+                    if (state.screen != Screen.Settings) {
+                        IconButton(onClick = vm::refresh, enabled = !state.loading) {
+                            Icon(Icons.Rounded.Refresh, contentDescription = "Yenile")
+                        }
+                        IconButton(onClick = { vm.select(Screen.Settings) }) {
+                            Icon(Icons.Rounded.Settings, contentDescription = "Ayarlar")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -155,9 +203,28 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
         },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // The decorative shape belongs to the article lists only.
+            if (state.screen == Screen.Stream || state.screen == Screen.Saved) IntroShape()
+
             when (state.screen) {
                 Screen.Sources -> SourcesList(state, vm, listState)
+                Screen.Settings -> SettingsScreen(state.settings, vm::updateSettings)
                 else -> ArticleList(state, vm, listState, onOpen = { openArticle = it })
+            }
+
+            // A wavy line shows how far down the list the reader is. It opens while scrolling down
+            // and folds away when the list is back at the top.
+            AnimatedVisibility(
+                visible = listState.firstVisibleItemIndex > 0,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 24.dp),
+            ) {
+                val total = listState.layoutInfo.totalItemsCount.coerceAtLeast(1)
+                LinearWavyProgressIndicator(
+                    progress = { (listState.firstVisibleItemIndex.toFloat() / total).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                )
             }
 
             // Snackbars sit above the toolbar, never under it.
@@ -166,7 +233,7 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
             )
 
-            HorizontalFloatingToolbar(
+            if (state.screen != Screen.Settings) HorizontalFloatingToolbar(
                 expanded = toolbarExpanded,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                 floatingActionButton = {
@@ -210,10 +277,17 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
     }
 
     openArticle?.let { article ->
-        LaunchedEffect(article.id) { vm.markRead(listOf(article.id)) }
+        LaunchedEffect(article.id) {
+            vm.markRead(listOf(article.id))
+            vm.loadFullText(article)
+        }
         ReaderSheet(
             article = article,
             saved = state.saved.containsKey(article.id),
+            fullText = state.fullText[article.id],
+            loadingText = state.loadingTextId == article.id,
+            settings = state.settings,
+            onChange = vm::updateSettings,
             onToggleSave = { vm.toggleSaved(article) },
             onOpenSource = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.link))) },
             onDismiss = { openArticle = null },
@@ -571,14 +645,27 @@ private fun AddFeedDialog(onDismiss: () -> Unit, onAdd: (String, (String) -> Uni
 private fun ReaderSheet(
     article: Article,
     saved: Boolean,
+    fullText: String?,
+    loadingText: Boolean,
+    settings: AppSettings,
+    onChange: ((AppSettings) -> AppSettings) -> Unit,
     onToggleSave: () -> Unit,
     onOpenSource: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val speaker = rememberSpeaker(settings.speechRate)
+    var speaking by remember { mutableStateOf(false) }
+    val body = fullText?.takeIf { it.isNotBlank() } ?: article.summary.ifEmpty { "Bu yazı için metin alınamadı. Tam yazı için orijinali açın." }
+
+    DisposableEffect(Unit) { onDispose { speaker?.stop() } }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
@@ -587,24 +674,35 @@ private fun ReaderSheet(
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(article.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                text = article.summary.ifEmpty { "Özet yok. Tam yazı için orijinali açın." },
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                FilledTonalButton(onClick = onToggleSave, modifier = Modifier.weight(1f)) {
+            when {
+                loadingText -> Text(
+                    "Tam metin yükleniyor…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> Text(body, style = readingStyle(settings), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FilledTonalButton(
+                    onClick = {
+                        if (speaking) {
+                            speaker?.stop()
+                            speaking = false
+                        } else {
+                            speaker?.speak(body)
+                            speaking = speaker != null
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
                     Icon(
-                        if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                        if (speaking) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.size(6.dp))
-                    Text(if (saved) "Kaydedildi" else "Kaydet")
+                    Text(if (speaking) "Durdur" else "Sesli oku")
                 }
                 Button(onClick = onOpenSource, modifier = Modifier.weight(1f)) {
                     Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -612,8 +710,76 @@ private fun ReaderSheet(
                     Text("Orijinali aç")
                 }
             }
+            FilledTonalButton(onClick = onToggleSave, modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.size(6.dp))
+                Text(if (saved) "Kaydedildi" else "Kaydet")
+            }
+
+            // Reading options are here too, so the text can be adjusted without leaving the article.
+            SectionLabel("Okuma ayarları")
+            ReadingOptions(settings, onChange)
         }
     }
+}
+
+/** The text-to-speech engine, created for the reader and released when it closes. */
+private class Speaker(private val engine: TextToSpeech, rate: Float) {
+    init {
+        engine.language = Locale("tr", "TR")
+        engine.setSpeechRate(rate)
+    }
+
+    fun speak(text: String) {
+        engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "article")
+    }
+
+    fun stop() {
+        engine.stop()
+    }
+}
+
+@Composable
+private fun rememberSpeaker(rate: Float): Speaker? {
+    val context = LocalContext.current
+    var speaker by remember { mutableStateOf<Speaker?>(null) }
+    DisposableEffect(context) {
+        var engine: TextToSpeech? = null
+        engine = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) engine?.let { speaker = Speaker(it, rate) }
+        }
+        onDispose {
+            engine?.stop()
+            engine?.shutdown()
+            speaker = null
+        }
+    }
+    return speaker
+}
+
+/** A large decorative shape that grows in on launch, behind the top of the list. */
+@Composable
+private fun BoxScope.IntroShape() {
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "intro-shape",
+    )
+    Box(
+        modifier = Modifier
+            .align(TopEnd)
+            .offset(x = 96.dp, y = (-56).dp)
+            .size(280.dp)
+            .graphicsLayer { scaleX = 0.4f + 0.6f * progress; scaleY = 0.4f + 0.6f * progress; alpha = 0.22f * progress }
+            .clip(MorphShape(introMorph, progress))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+    )
 }
 
 private fun relativeTime(millis: Long?): String {
@@ -621,3 +787,174 @@ private fun relativeTime(millis: Long?): String {
     return DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
 }
 
+/** Text size, easy reading and speech speed. Used in the reader and on the settings screen. */
+@Composable
+private fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
+    SettingsGroup {
+        SwitchRow(
+            icon = Icons.Rounded.AutoStories,
+            title = "Kolay okuma",
+            subtitle = "Satır ve harf aralığını artırır",
+            checked = settings.easyReading,
+            onChange = { value -> onChange { it.copy(easyReading = value) } },
+        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+        SettingRow(icon = Icons.Rounded.FormatSize, title = "Yazı boyutu", subtitle = "Yazının büyüklüğü") {
+            SegmentedChoice(
+                options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
+                selected = settings.textScale,
+                onSelect = { value -> onChange { it.copy(textScale = value) } },
+            )
+        }
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+        SettingRow(icon = Icons.Rounded.RecordVoiceOver, title = "Sesli okuma hızı", subtitle = "Yazıyı sesli okurken") {
+            SegmentedChoice(
+                options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
+                selected = settings.speechRate,
+                onSelect = { value -> onChange { it.copy(speechRate = value) } },
+            )
+        }
+    }
+}
+
+/** Article text style with the reader's size and easy-reading choices applied. */
+@Composable
+private fun readingStyle(settings: AppSettings): TextStyle {
+    val base = MaterialTheme.typography.bodyLarge
+    val size = base.fontSize * settings.textScale
+    return base.copy(
+        fontSize = size,
+        lineHeight = if (settings.easyReading) size * 1.8f else size * 1.5f,
+        letterSpacing = if (settings.easyReading) 0.4.sp else base.letterSpacing,
+    )
+}
+
+/** The settings screen: grouped rounded cards, each with a section label above it. */
+@Composable
+private fun SettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 40.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { SectionLabel("Görünüm") }
+        item {
+            SettingsGroup {
+                SettingRow(icon = Icons.Rounded.DarkMode, title = "Tema", subtitle = "Sistem, açık veya koyu") {
+                    SegmentedChoice(
+                        options = listOf("system" to "Sistem", "light" to "Açık", "dark" to "Koyu"),
+                        selected = settings.themeMode,
+                        onSelect = { value -> onChange { it.copy(themeMode = value) } },
+                    )
+                }
+            }
+        }
+
+        item { SectionLabel("Okuma") }
+        item {
+            SwitchRow(
+                icon = Icons.Rounded.VisibilityOff,
+                title = "Okunmuşları gizle",
+                subtitle = "Okuduğunuz yazılar akışta görünmez",
+                checked = settings.hideRead,
+                onChange = { value -> onChange { it.copy(hideRead = value) } },
+            )
+        }
+        item { ReadingOptions(settings, onChange) }
+
+        item { SectionLabel("Bakım") }
+        item {
+            SettingsGroup {
+                SwitchRow(
+                    icon = Icons.Rounded.DoneAll,
+                    title = "7 günden eski yazıları okundu yap",
+                    subtitle = "Yenilemede eski yazılar kendiliğinden kapanır",
+                    checked = settings.autoReadOld,
+                    onChange = { value -> onChange { it.copy(autoReadOld = value) } },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 12.dp),
+    )
+}
+
+/** One rounded card that holds a group of related settings rows. */
+@Composable
+private fun SettingsGroup(content: @Composable () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
+    }
+}
+
+@Composable
+private fun SettingRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    trailing: @Composable () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        trailing()
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.size(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.size(12.dp))
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+/** Connected segmented buttons for choosing one of a few values. */
+@Composable
+private fun <T> SegmentedChoice(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = value == selected,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(label)
+            }
+        }
+    }
+}

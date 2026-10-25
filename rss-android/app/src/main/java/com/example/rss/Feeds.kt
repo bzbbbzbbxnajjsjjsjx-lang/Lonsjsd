@@ -26,6 +26,18 @@ data class Article(
 
 data class ParsedFeed(val title: String, val articles: List<Article>)
 
+/** User preferences, kept on the device. */
+data class AppSettings(
+    val themeMode: String = "system",
+    val hideRead: Boolean = false,
+    val autoReadOld: Boolean = true,
+    val speechRate: Float = 1f,
+    /** Scale for article text: 1, 1.2 or 1.4. */
+    val textScale: Float = 1f,
+    /** Easy reading: wider line spacing and letter spacing for the article text. */
+    val easyReading: Boolean = false,
+)
+
 /** Reads RSS (`item`) and Atom (`entry`) documents. */
 object FeedParser {
     private val rfc1123 = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
@@ -179,6 +191,24 @@ class FeedStore(private val prefs: android.content.SharedPreferences) {
 
     fun saveSaved(articles: List<Article>) = prefs.edit().putString(KEY_SAVED, JSONArray(articles.map { it.toJson() }).toString()).apply()
 
+    fun settings(): AppSettings = AppSettings(
+        themeMode = prefs.getString(KEY_THEME, "system") ?: "system",
+        hideRead = prefs.getBoolean(KEY_HIDE_READ, false),
+        autoReadOld = prefs.getBoolean(KEY_AUTO_READ_OLD, true),
+        speechRate = prefs.getFloat(KEY_SPEECH_RATE, 1f),
+        textScale = prefs.getFloat(KEY_TEXT_SCALE, 1f),
+        easyReading = prefs.getBoolean(KEY_EASY_READING, false),
+    )
+
+    fun saveSettings(settings: AppSettings) = prefs.edit()
+        .putString(KEY_THEME, settings.themeMode)
+        .putBoolean(KEY_HIDE_READ, settings.hideRead)
+        .putBoolean(KEY_AUTO_READ_OLD, settings.autoReadOld)
+        .putFloat(KEY_SPEECH_RATE, settings.speechRate)
+        .putFloat(KEY_TEXT_SCALE, settings.textScale)
+        .putBoolean(KEY_EASY_READING, settings.easyReading)
+        .apply()
+
     fun read(): Set<String> = prefs.getStringSet(KEY_READ, emptySet()).orEmpty()
 
     fun saveRead(ids: Set<String>) = prefs.edit().putStringSet(KEY_READ, ids.toList().takeLast(500).toSet()).apply()
@@ -204,11 +234,31 @@ class FeedStore(private val prefs: android.content.SharedPreferences) {
         private const val KEY_ITEMS = "items"
         private const val KEY_SAVED = "saved"
         private const val KEY_READ = "read"
+        private const val KEY_THEME = "theme"
+        private const val KEY_HIDE_READ = "hide_read"
+        private const val KEY_AUTO_READ_OLD = "auto_read_old"
+        private const val KEY_SPEECH_RATE = "speech_rate"
+        private const val KEY_TEXT_SCALE = "text_scale"
+        private const val KEY_EASY_READING = "easy_reading"
 
         val DEFAULT_FEEDS = listOf(
             Feed("hn", "Hacker News", "https://hnrss.org/frontpage"),
             Feed("verge", "The Verge", "https://www.theverge.com/rss/index.xml"),
             Feed("bbc", "BBC Teknoloji", "https://feeds.bbci.co.uk/news/technology/rss.xml"),
         )
+    }
+}
+
+/** Pulls the readable text out of an article page: the paragraphs of the body, without page chrome. */
+object FullText {
+    private val chrome = Regex("(?is)<(script|style|nav|header|footer|aside|form|svg|noscript)[^>]*>.*?</\\1>")
+    private val paragraph = Regex("(?is)<p[^>]*>(.*?)</p>")
+
+    fun extract(html: String): String {
+        val body = chrome.replace(html, " ")
+        return paragraph.findAll(body)
+            .map { FeedParser.stripHtml(it.groupValues[1]) }
+            .filter { it.length >= 40 }
+            .joinToString("\n\n")
     }
 }

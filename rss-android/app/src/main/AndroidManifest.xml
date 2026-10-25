@@ -7,7 +7,7 @@
         android:allowBackup="true"
         android:label="Akış"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Rss">
+        android:theme="@style/Theme.Rss.Starting">
         <activity
             android:name=".MainActivity"
             android:exported="true"

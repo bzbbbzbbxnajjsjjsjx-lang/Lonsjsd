@@ -96,4 +96,30 @@ class AppScreenTest {
         rule.onNodeWithText("Hacker News").assertIsDisplayed()
         screenshot("sources")
     }
+
+    @Test
+    fun settingsScreenShowsGroupedOptions() {
+        seed()
+        rule.setContent { RssTheme { AppScreen() } }
+        rule.waitForIdle()
+
+        rule.onNodeWithContentDescription("Ayarlar").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("Okunmuşları gizle").assertIsDisplayed()
+        rule.onNodeWithText("Sesli okuma hızı").assertIsDisplayed()
+        screenshot("settings")
+    }
+
+    @Test
+    fun readerShowsReadingOptions() {
+        seed()
+        rule.setContent { RssTheme { AppScreen() } }
+        rule.waitForIdle()
+
+        rule.onNodeWithText("Katı hal bataryalar seri üretime girdi").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("Kolay okuma").assertIsDisplayed()
+        rule.onNodeWithText("Yazı boyutu").assertIsDisplayed()
+        screenshot("reader")
+    }
 }
