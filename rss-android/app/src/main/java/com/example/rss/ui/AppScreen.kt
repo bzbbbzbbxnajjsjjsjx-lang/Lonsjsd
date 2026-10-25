@@ -47,6 +47,8 @@ import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.automirrored.rounded.Feed
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.RssFeed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -346,6 +348,20 @@ private fun ArticleList(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (state.screen == Screen.Stream || state.screen == Screen.Saved) {
+            item(key = "search") {
+                OutlinedTextField(
+                    value = state.query,
+                    onValueChange = vm::setQuery,
+                    placeholder = { Text("Yazılarda ara") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
         if (state.screen == Screen.Stream && state.feeds.isNotEmpty()) {
             item(key = "filters") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -413,7 +429,7 @@ private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         modifier = Modifier
             .fillMaxWidth()
-            .height(208.dp)
+            .height(240.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -445,7 +461,7 @@ private fun HeroCard(article: Article, read: Boolean, onOpen: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = article.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = ink.copy(alpha = if (read) 0.7f else 1f),
                     maxLines = 3,
@@ -510,7 +526,7 @@ private fun ArticleCard(
             Spacer(Modifier.height(6.dp))
             Text(
                 text = article.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (read) 0.6f else 1f),
                 maxLines = 2,
@@ -520,7 +536,7 @@ private fun ArticleCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = article.summary,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -722,6 +738,7 @@ private fun ReaderSheet(
     onDismiss: () -> Unit,
 ) {
     val speaker = rememberSpeaker(settings.speechRate)
+    val context = LocalContext.current
     var speaking by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
     var actionsExpanded by remember { mutableStateOf(true) }
@@ -838,6 +855,16 @@ private fun ReaderSheet(
                         }
                         IconButton(onClick = { showOptions = true }) {
                             Icon(Icons.Rounded.FormatSize, contentDescription = "Okuma ayarları")
+                        }
+                        IconButton(
+                            onClick = {
+                                val send = Intent(Intent.ACTION_SEND)
+                                    .setType("text/plain")
+                                    .putExtra(Intent.EXTRA_TEXT, "${article.title}\n${article.link}")
+                                context.startActivity(Intent.createChooser(send, null))
+                            },
+                        ) {
+                            Icon(Icons.Rounded.Share, contentDescription = "Paylaş")
                         }
                         IconButton(onClick = onOpenSource) {
                             Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = "Orijinali aç")
