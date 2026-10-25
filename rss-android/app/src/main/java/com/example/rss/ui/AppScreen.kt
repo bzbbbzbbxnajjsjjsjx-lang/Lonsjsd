@@ -5,6 +5,7 @@
 
 package com.example.rss.ui
 
+import androidx.compose.material3.Surface
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
@@ -677,72 +678,107 @@ private fun ReaderSheet(
     val speaker = rememberSpeaker(settings.speechRate)
     var speaking by remember { mutableStateOf(false) }
     val body = fullText?.takeIf { it.isNotBlank() } ?: article.summary.ifEmpty { "Bu yazı için metin alınamadı. Tam yazı için orijinali açın." }
+    val scroll = rememberScrollState()
+    // The options panel folds away while the article moves down and opens again on the way up.
+    var optionsOpen by remember { mutableStateOf(true) }
 
     DisposableEffect(Unit) { onDispose { speaker?.stop() } }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = "${article.source} · ${relativeTime(article.dateMillis)}",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(article.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            when {
-                loadingText -> Text(
-                    "Tam metin yükleniyor…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> Text(body, style = readingStyle(settings), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    LaunchedEffect(scroll) {
+        var last = 0
+        snapshotFlow { scroll.value }.collect { value ->
+            if (value > last + 6 && value > 120) optionsOpen = false
+            if (value < last - 6) optionsOpen = true
+            last = value
+        }
+    }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilledTonalButton(
-                    onClick = {
-                        if (speaking) {
-                            speaker?.stop()
-                            speaking = false
-                        } else {
-                            speaker?.speak(body)
-                            speaking = speaker != null
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // The article itself: it scrolls, and the options panel below stays separate from it.
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = "${article.source} · ${relativeTime(article.dateMillis)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(article.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                if (loadingText) {
+                    Text(
+                        "Tam metin yükleniyor…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(body, style = readingStyle(settings), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilledTonalButton(
+                        onClick = {
+                            if (speaking) {
+                                speaker?.stop()
+                                speaking = false
+                            } else {
+                                speaker?.speak(body)
+                                speaking = speaker != null
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            if (speaking) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(6.dp))
+                        Text(if (speaking) "Durdur" else "Sesli oku")
+                    }
+                    Button(onClick = onOpenSource, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(6.dp))
+                        Text("Orijinali aç")
+                    }
+                }
+                FilledTonalButton(onClick = onToggleSave, modifier = Modifier.fillMaxWidth()) {
                     Icon(
-                        if (speaking) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                        if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.size(6.dp))
-                    Text(if (speaking) "Durdur" else "Sesli oku")
+                    Text(if (saved) "Kaydedildi" else "Kaydet")
                 }
-                Button(onClick = onOpenSource, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(6.dp))
-                    Text("Orijinali aç")
-                }
-            }
-            FilledTonalButton(onClick = onToggleSave, modifier = Modifier.fillMaxWidth()) {
-                Icon(
-                    if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.size(6.dp))
-                Text(if (saved) "Kaydedildi" else "Kaydet")
             }
 
-            // Reading options are here too, so the text can be adjusted without leaving the article.
-            SectionLabel("Okuma ayarları")
-            ReadingOptions(settings, onChange)
+            // Reading options: their own panel at the foot of the sheet, not part of the article.
+            AnimatedVisibility(
+                visible = optionsOpen,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)) {
+                        Text(
+                            "Okuma ayarları",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
+                        )
+                        ReadingOptions(settings, onChange)
+                    }
+                }
+            }
         }
     }
 }

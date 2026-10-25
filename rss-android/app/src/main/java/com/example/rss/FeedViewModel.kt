@@ -178,8 +178,16 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val draft = Feed(UUID.randomUUID().toString(), url, url)
-                    val parsed = FeedParser.parse(FeedClient.fetch(url), draft)
+                    // A website is turned into its feed: if the address is a page, its feed link is used.
+                    val body = FeedClient.fetch(url)
+                    val feedUrl = if (FeedDiscovery.isFeed(body)) {
+                        url
+                    } else {
+                        FeedDiscovery.findFeedUrl(body, url) ?: error("Bu sayfada RSS veya Atom bağlantısı bulunamadı.")
+                    }
+                    val feedBody = if (feedUrl == url) body else FeedClient.fetch(feedUrl)
+                    val draft = Feed(UUID.randomUUID().toString(), feedUrl, feedUrl)
+                    val parsed = FeedParser.parse(feedBody, draft)
                     draft.copy(title = parsed.title) to parsed.articles
                 }
             }
@@ -191,7 +199,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 _state.update { it.copy(feeds = feeds, articles = merged, message = "${feed.title} eklendi") }
                 onResult(Result.success(feed))
             }.onFailure {
-                onResult(Result.failure(IllegalStateException("Bu bağlantı okunamadı. RSS veya Atom olduğundan emin olun.")))
+                onResult(Result.failure(IllegalStateException(it.message ?: "Bu bağlantı okunamadı. RSS veya Atom olduğundan emin olun.")))
             }
         }
     }

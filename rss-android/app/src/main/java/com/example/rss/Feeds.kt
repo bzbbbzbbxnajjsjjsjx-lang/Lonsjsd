@@ -262,3 +262,25 @@ object FullText {
             .joinToString("\n\n")
     }
 }
+
+/**
+ * Turns a website into its feed. When the address is a web page rather than an RSS or Atom
+ * document, the page's own feed link (`<link rel="alternate" type="application/rss+xml">`) is used.
+ */
+object FeedDiscovery {
+    private val feedLink = Regex("""<link\b[^>]*type\s*=\s*["']application/(?:rss|atom)\+xml["'][^>]*>""", RegexOption.IGNORE_CASE)
+    private val href = Regex("""href\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+
+    /** Whether [body] is already a feed document. */
+    fun isFeed(body: String): Boolean {
+        val head = body.take(4000).lowercase()
+        return head.contains("<rss") || head.contains("<feed") || head.contains("<channel")
+    }
+
+    /** The feed address a page points to, resolved against the page's [base] address. */
+    fun findFeedUrl(html: String, base: String): String? {
+        val link = feedLink.find(html)?.value ?: return null
+        val target = href.find(link)?.groupValues?.get(1) ?: return null
+        return runCatching { java.net.URI(base).resolve(target).toString() }.getOrNull()
+    }
+}
