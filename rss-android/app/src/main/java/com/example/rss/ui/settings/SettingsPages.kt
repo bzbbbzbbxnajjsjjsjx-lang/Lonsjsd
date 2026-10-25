@@ -1,5 +1,6 @@
 package com.example.rss.ui.settings
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -186,38 +187,56 @@ fun SettingsContent(
     }
 }
 
-/** The reading options as a group of rows, for the article reader. */
+/** The reading options for the article reader, laid out like the Okuma settings page. */
 @Composable
 fun ReadingOptions(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
-    Column {
-        SwitchRowContent(
-            shape = groupShape(0, 3),
-            icon = Icons.Rounded.AutoStories,
-            title = "Kolay okuma",
-            subtitle = "Satır ve harf aralığını artırır",
-            checked = settings.easyReading,
-            onChange = { value -> onChange { it.copy(easyReading = value) } },
-        )
-        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
-        ChoiceRowContent(
-            shape = groupShape(1, 3),
-            icon = Icons.Rounded.FormatSize,
-            title = "Yazı boyutu",
-            subtitle = "Yazının büyüklüğü",
-            options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
-            selected = settings.textScale,
-            onSelect = { value -> onChange { it.copy(textScale = value) } },
-        )
-        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
-        ChoiceRowContent(
-            shape = groupShape(2, 3),
-            icon = Icons.Rounded.RecordVoiceOver,
-            title = "Sesli okuma hızı",
-            subtitle = "Yazıyı sesli okurken",
-            options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
-            selected = settings.speechRate,
-            onSelect = { value -> onChange { it.copy(speechRate = value) } },
-        )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionLabel("Yazı")
+        SettingsGroupColumn(count = 2) { index ->
+            if (index == 0) {
+                SwitchRowContent(
+                    shape = groupShape(0, 2),
+                    icon = Icons.Rounded.AutoStories,
+                    title = "Kolay okuma",
+                    subtitle = "Satır ve harf aralığını artırır",
+                    checked = settings.easyReading,
+                    onChange = { value -> onChange { it.copy(easyReading = value) } },
+                )
+            } else {
+                ChoiceRowContent(
+                    shape = groupShape(1, 2),
+                    icon = Icons.Rounded.FormatSize,
+                    title = "Yazı boyutu",
+                    subtitle = "Yazının büyüklüğü",
+                    options = listOf(1f to "Normal", 1.2f to "Büyük", 1.4f to "Çok büyük"),
+                    selected = settings.textScale,
+                    onSelect = { value -> onChange { it.copy(textScale = value) } },
+                )
+            }
+        }
+        SectionLabel("Sesli okuma")
+        SettingsGroupColumn(count = 1) {
+            ChoiceRowContent(
+                shape = groupShape(0, 1),
+                icon = Icons.Rounded.RecordVoiceOver,
+                title = "Okuma hızı",
+                subtitle = "Yazıyı sesli okurken",
+                options = listOf(0.75f to "0,75×", 1f to "1×", 1.25f to "1,25×"),
+                selected = settings.speechRate,
+                onSelect = { value -> onChange { it.copy(speechRate = value) } },
+            )
+        }
+    }
+}
+
+/** Stacks [count] rows with the segmented gap between them. */
+@Composable
+private fun SettingsGroupColumn(count: Int, row: @Composable (Int) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        repeat(count) { index ->
+            if (index > 0) Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
+            row(index)
+        }
     }
 }
 
