@@ -12,6 +12,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import com.example.rss.ui.AppScreen
 import com.example.rss.ui.RssTheme
 import org.junit.Rule
@@ -125,5 +129,20 @@ class AppScreenTest {
         rule.onNodeWithText("Kolay okuma").assertIsDisplayed()
         rule.onNodeWithText("Yazı boyutu").assertIsDisplayed()
         screenshot("reader")
+    }
+
+    @Test
+    fun easyReadingVisibleInReader() {
+        seed()
+        rule.setContent { RssTheme { AppScreen() } }
+        rule.waitForIdle()
+        rule.onNodeWithText("Yapay zeka araçları gündelik işleri değiştiriyor").performClick()
+        rule.waitForIdle()
+        screenshot("reader-normal")
+        rule.onNodeWithContentDescription("Okuma ayarları").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("switch:Kolay okuma").performClick()
+        rule.waitForIdle()
+        screenshot("reader-easy")
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -92,7 +93,11 @@ fun SwitchRowContent(
     onChange: (Boolean) -> Unit,
 ) = RowSurface(shape) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+        // The whole row toggles, not only the small switch.
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -100,6 +105,7 @@ fun SwitchRowContent(
         Column(modifier = Modifier.weight(1f)) { RowTitles(title, subtitle) }
         Spacer(Modifier.size(12.dp))
         Switch(
+            modifier = Modifier.testTag("switch:$title"),
             checked = checked,
             onCheckedChange = onChange,
             // On shows a check and off shows a cross inside the thumb, as in Material 3 Expressive switches.
