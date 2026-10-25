@@ -849,9 +849,11 @@ private fun ReaderSheet(
     }
 
     if (showOptions) {
+        // The page color behind the option cards, as in Flow's settings: the cards must stand out from it.
         ModalBottomSheet(
             onDismissRequest = { showOptions = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier
