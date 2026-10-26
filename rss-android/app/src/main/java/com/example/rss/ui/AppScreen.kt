@@ -103,6 +103,8 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -170,6 +172,15 @@ private val CardShape = RoundedCornerShape(24.dp)
 /** The save badge morphs from a rounded square into a cookie when the article is saved. */
 private val saveMorph = Morph(MaterialShapes.Square, MaterialShapes.Cookie9Sided)
 
+/**
+ * The tap feedback: a short haptic click for every press that changes something, so the app answers the finger.
+ */
+@Composable
+private fun rememberTap(): () -> Unit {
+    val haptic = LocalHapticFeedback.current
+    return remember(haptic) { { haptic.performHapticFeedback(HapticFeedbackType.ContextClick) } }
+}
+
 /** The big decorative shape that grows in on launch: a pill that settles into a 12-sided cookie. */
 private val introMorph = Morph(MaterialShapes.Pill, MaterialShapes.Cookie12Sided)
 
@@ -177,6 +188,7 @@ private val introMorph = Morph(MaterialShapes.Pill, MaterialShapes.Cookie12Sided
 fun AppScreen(vm: FeedViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val tap = rememberTap()
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
@@ -232,17 +244,17 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (state.screen == Screen.Settings) {
-                        IconButton(onClick = vm::settingsBack) {
+                        IconButton(onClick = { tap(); vm.settingsBack() }) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri")
                         }
                     }
                 },
                 actions = {
                     if (state.screen != Screen.Settings) {
-                        IconButton(onClick = vm::refresh, enabled = !state.loading) {
+                        IconButton(onClick = { tap(); vm.refresh() }, enabled = !state.loading) {
                             Icon(Icons.Rounded.Refresh, contentDescription = "Yenile")
                         }
-                        IconButton(onClick = { vm.select(Screen.Settings) }) {
+                        IconButton(onClick = { tap(); vm.select(Screen.Settings) }) {
                             Icon(Icons.Rounded.Settings, contentDescription = "Ayarlar")
                         }
                     }
@@ -300,7 +312,10 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                 floatingActionButton = {
                     val isSources = state.screen == Screen.Sources
                     FloatingToolbarDefaults.VibrantFloatingActionButton(
-                        onClick = { if (isSources) showAddFeed = true else vm.markAllRead() },
+                        onClick = {
+                            tap()
+                            if (isSources) showAddFeed = true else vm.markAllRead()
+                        },
                     ) {
                         Icon(
                             if (isSources) Icons.Rounded.Add else Icons.Rounded.DoneAll,
@@ -316,7 +331,7 @@ fun AppScreen(vm: FeedViewModel = viewModel()) {
                 ).forEach { (screen, icon, label) ->
                     IconToggleButton(
                         checked = state.screen == screen,
-                        onCheckedChange = { vm.select(screen) },
+                        onCheckedChange = { tap(); vm.select(screen) },
                     ) {
                         Icon(icon, contentDescription = label)
                     }
@@ -366,6 +381,7 @@ private fun ArticleList(
     val visible = state.visible
     val hero = if (state.screen == Screen.Stream) visible.firstOrNull() else null
     val rest = if (hero != null) visible.drop(1) else visible
+    val tap = rememberTap()
     // Articles that have already risen in on this page: scrolling back to them must not replay the entrance.
     val risen = remember { mutableSetOf<String>() }
     fun riseFor(id: String, index: Int): Long? = if (risen.add(id)) min(index, 8) * 60L else null
@@ -382,14 +398,14 @@ private fun ArticleList(
                     item(key = "all") {
                         FilterChip(
                             selected = state.filterFeedId == null,
-                            onClick = { vm.filter(null) },
+                            onClick = { tap(); vm.filter(null) },
                             label = { Text("Tümü") },
                         )
                     }
                     items(state.feeds, key = { it.id }) { feed ->
                         FilterChip(
                             selected = state.filterFeedId == feed.id,
-                            onClick = { vm.filter(feed.id) },
+                            onClick = { tap(); vm.filter(feed.id) },
                             label = { Text(feed.title) },
                         )
                     }
@@ -402,7 +418,7 @@ private fun ArticleList(
                 HeroCard(
                     article = hero,
                     read = hero.id in state.read,
-                    onOpen = { onOpen(hero) },
+                    onOpen = { tap(); onOpen(hero) },
                     riseDelay = riseFor(hero.id, 0),
                 )
             }
@@ -413,8 +429,8 @@ private fun ArticleList(
                 article = article,
                 read = article.id in state.read,
                 saved = state.saved.containsKey(article.id),
-                onOpen = { onOpen(article) },
-                onToggleSave = { vm.toggleSaved(article) },
+                onOpen = { tap(); onOpen(article) },
+                onToggleSave = { tap(); vm.toggleSaved(article) },
                 riseDelay = riseFor(article.id, index + 1),
                 modifier = Modifier.animateItem(),
             )
@@ -584,6 +600,7 @@ private fun SaveBadge(saved: Boolean, onClick: () -> Unit) {
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "save-morph",
     )
+    val tap = rememberTap()
     val container = lerp(
         MaterialTheme.colorScheme.surfaceContainerHighest,
         MaterialTheme.colorScheme.primaryContainer,
@@ -608,7 +625,7 @@ private fun SaveBadge(saved: Boolean, onClick: () -> Unit) {
             .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
             .clip(MorphShape(saveMorph, progress))
             .background(container)
-            .clickable(onClick = onClick),
+            .clickable(onClick = { tap(); onClick() }),
     ) {
         Icon(
             imageVector = if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
@@ -676,6 +693,7 @@ private fun SourcesList(state: UiState, vm: FeedViewModel, listState: LazyListSt
 
 @Composable
 private fun SourceCard(feed: Feed, onRemove: () -> Unit) {
+    val tap = rememberTap()
     Card(
         shape = CardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -716,7 +734,7 @@ private fun SourceCard(feed: Feed, onRemove: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onRemove) {
+            IconButton(onClick = { tap(); onRemove() }) {
                 Icon(Icons.Rounded.Delete, contentDescription = "${feed.title} kaynağını kaldır")
             }
         }
@@ -745,6 +763,7 @@ private fun AddFeedDialog(onDismiss: () -> Unit, onAdd: (String, (String) -> Uni
     var url by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    val tap = rememberTap()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -768,6 +787,7 @@ private fun AddFeedDialog(onDismiss: () -> Unit, onAdd: (String, (String) -> Uni
             Button(
                 enabled = !busy && url.isNotBlank(),
                 onClick = {
+                    tap()
                     busy = true
                     onAdd(url) { message ->
                         busy = false
@@ -797,6 +817,7 @@ private fun ReaderSheet(
     onDismiss: () -> Unit,
 ) {
     val speaker = rememberSpeaker(settings.speechRate)
+    val tap = rememberTap()
     val context = LocalContext.current
     var speaking by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
@@ -895,7 +916,7 @@ private fun ReaderSheet(
                         expanded = actionsExpanded,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                     ) {
-                        IconToggleButton(checked = saved, onCheckedChange = { onToggleSave() }) {
+                        IconToggleButton(checked = saved, onCheckedChange = { tap(); onToggleSave() }) {
                             Icon(
                                 if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 contentDescription = if (saved) "Kayıttan çıkar" else "Kaydet",
@@ -903,6 +924,7 @@ private fun ReaderSheet(
                         }
                         IconButton(
                             onClick = {
+                                tap()
                                 if (speaking) {
                                     speaker?.stop()
                                     speaking = false
@@ -917,11 +939,12 @@ private fun ReaderSheet(
                                 contentDescription = if (speaking) "Durdur" else "Sesli oku",
                             )
                         }
-                        IconButton(onClick = { showOptions = true }) {
+                        IconButton(onClick = { tap(); showOptions = true }) {
                             Icon(Icons.Rounded.FormatSize, contentDescription = "Okuma ayarları")
                         }
                         IconButton(
                             onClick = {
+                                tap()
                                 val send = Intent(Intent.ACTION_SEND)
                                     .setType("text/plain")
                                     .putExtra(Intent.EXTRA_TEXT, "${article.title}\n${article.link}")
@@ -930,7 +953,7 @@ private fun ReaderSheet(
                         ) {
                             Icon(Icons.Rounded.Share, contentDescription = "Paylaş")
                         }
-                        IconButton(onClick = onOpenSource) {
+                        IconButton(onClick = { tap(); onOpenSource() }) {
                             Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = "Orijinali aç")
                         }
                     }

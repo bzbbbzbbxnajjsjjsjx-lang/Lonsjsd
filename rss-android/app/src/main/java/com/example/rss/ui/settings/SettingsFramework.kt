@@ -31,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -93,11 +95,17 @@ fun SwitchRowContent(
     checked: Boolean,
     onChange: (Boolean) -> Unit,
 ) = RowSurface(shape) {
+    val haptic = LocalHapticFeedback.current
+    // Every change gives a short click, whether the row or the switch was pressed.
+    val change: (Boolean) -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+        onChange(it)
+    }
     Row(
         // The whole row toggles, not only the small switch.
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onChange(!checked) }
+            .clickable { change(!checked) }
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -108,7 +116,7 @@ fun SwitchRowContent(
         Switch(
             modifier = Modifier.testTag("switch:$title"),
             checked = checked,
-            onCheckedChange = onChange,
+            onCheckedChange = change,
             // On shows a check and off shows a cross inside the thumb, as in Material 3 Expressive switches.
             thumbContent = {
                 Icon(
@@ -132,6 +140,7 @@ fun <T> ChoiceRowContent(
     selected: T,
     onSelect: (T) -> Unit,
 ) = RowSurface(shape) {
+    val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -143,7 +152,10 @@ fun <T> ChoiceRowContent(
             options.forEachIndexed { index, (value, label) ->
                 SegmentedButton(
                     selected = value == selected,
-                    onClick = { onSelect(value) },
+                    onClick = {
+                        if (value != selected) haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onSelect(value)
+                    },
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 ) {
                     Text(label)
@@ -162,8 +174,15 @@ fun NavRowContent(
     subtitle: String?,
     onClick: () -> Unit,
 ) = RowSurface(shape) {
+    val haptic = LocalHapticFeedback.current
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                onClick()
+            }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
