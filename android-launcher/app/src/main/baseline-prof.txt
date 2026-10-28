@@ -1,0 +1,15 @@
+HSPLcom/example/minilauncher/MainActivity;-><init>()V
+HSPLcom/example/minilauncher/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/example/minilauncher/MainActivity;->onNewIntent(Landroid/content/Intent;)V
+HSPLcom/example/minilauncher/MainActivity;->launchApp(Landroid/content/ComponentName;)V
+HSPLcom/example/minilauncher/MainActivity;->openAppInfo(Lcom/example/minilauncher/AppEntry;)V
+HSPLcom/example/minilauncher/MainActivity;->uninstallApp(Lcom/example/minilauncher/AppEntry;)V
+HSPLcom/example/minilauncher/AppListKt;->loadApps(Landroid/content/pm/PackageManager;Ljava/lang/String;)Ljava/util/List;
+HSPLcom/example/minilauncher/AppListKt;->search(Ljava/util/List;Ljava/lang/String;Ljava/util/Map;)Ljava/util/List;
+HSPLcom/example/minilauncher/AppListKt;->autoOpenMatch(Ljava/util/List;Ljava/lang/String;Ljava/util/Map;)Lcom/example/minilauncher/AppEntry;
+HSPLcom/example/minilauncher/AppCache;->load()Ljava/util/List;
+HSPLcom/example/minilauncher/AppCache;->save(Ljava/util/List;)V
+HSPLcom/example/minilauncher/UsageStore;->counts()Ljava/util/Map;
+HSPLcom/example/minilauncher/UsageStore;->record(Landroid/content/ComponentName;)V
+HSPLcom/example/minilauncher/SettingsStore;->load()Lcom/example/minilauncher/LauncherSettings;
+HSPLcom/example/minilauncher/SettingsStore;->save(Lcom/example/minilauncher/LauncherSettings;)V

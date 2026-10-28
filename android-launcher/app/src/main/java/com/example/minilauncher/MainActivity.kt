@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -233,7 +236,7 @@ fun LauncherScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .windowInsetsPadding(WindowInsets.safeDrawing),
+                .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             // Title on the left, settings button in the top-right corner.
             Row(
@@ -305,8 +308,11 @@ fun LauncherScreen(
                 },
                 onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
                 focusRequester = focusRequester,
+                // The keyboard lifts only this bar. The window itself does not resize,
+                // so the app list is not re-laid-out on every keyboard animation frame.
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             )
         }
