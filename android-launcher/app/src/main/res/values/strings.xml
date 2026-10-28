@@ -10,6 +10,7 @@
     <string name="app_info">Uygulama bilgisi</string>
     <string name="uninstall">Kaldır</string>
     <string name="settings">Ayarlar</string>
+    <string name="back">Geri</string>
     <string name="setting_auto_keyboard">Ana ekrana dönünce klavyeyi aç</string>
     <string name="setting_auto_open">Tam isim yazınca uygulamayı aç</string>
     <string name="setting_sort_usage">Sık kullanılanları üstte göster</string>

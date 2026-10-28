@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -30,8 +31,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -198,77 +201,11 @@ fun LauncherScreen(
         apps.search(query, if (settings.sortByUsage) usageCounts else emptyMap())
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-            Text(
-                text = stringResource(R.string.screen_title),
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.app_count, apps.size),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TextButton(onClick = { settingsOpen = true }) {
-                Text(stringResource(R.string.settings))
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            itemsIndexed(
-                items = results,
-                key = { _, app -> app.component.flattenToString() },
-            ) { index, app ->
-                AppRow(
-                    app = app,
-                    shape = segmentShape(index, results.size),
-                    modifier = Modifier.animateItem(),
-                    onClick = { onLaunch(app.component) },
-                    onLongClick = { menuApp = app },
-                )
-            }
-        }
-
-        if (results.isEmpty() && query.isNotBlank()) {
-            Text(
-                text = stringResource(R.string.no_results),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-        }
-
-        // Search sits at the bottom, within thumb reach, and is focused on open.
-        SearchField(
-            query = query,
-            onQueryChange = { text ->
-                query = text
-                val match = if (settings.autoOpen) apps.autoOpenMatch(text, usageCounts) else null
-                match?.let { app ->
-                    query = ""
-                    onLaunch(app.component)
-                }
-            },
-            onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
-            focusRequester = focusRequester,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        )
-    }
+    // The system back gesture closes settings instead of leaving the launcher.
+    BackHandler(enabled = settingsOpen) { settingsOpen = false }
 
     if (settingsOpen) {
-        SettingsSheet(
+        SettingsScreen(
             settings = settings,
             onChange = { updated ->
                 settings = updated
@@ -278,8 +215,85 @@ fun LauncherScreen(
                 usage.clear()
                 usageCounts = usage.counts()
             },
-            onDismiss = { settingsOpen = false },
+            onBack = { settingsOpen = false },
         )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            // Title on the left, settings button in the top-right corner.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.screen_title),
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.app_count, apps.size),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = { settingsOpen = true }) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                itemsIndexed(
+                    items = results,
+                    key = { _, app -> app.component.flattenToString() },
+                ) { index, app ->
+                    AppRow(
+                        app = app,
+                        shape = segmentShape(index, results.size),
+                        modifier = Modifier.animateItem(),
+                        onClick = { onLaunch(app.component) },
+                        onLongClick = { menuApp = app },
+                    )
+                }
+            }
+
+            if (results.isEmpty() && query.isNotBlank()) {
+                Text(
+                    text = stringResource(R.string.no_results),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+            }
+
+            // Search sits at the bottom, within thumb reach, and is focused on open.
+            SearchField(
+                query = query,
+                onQueryChange = { text ->
+                    query = text
+                    val match = if (settings.autoOpen) apps.autoOpenMatch(text, usageCounts) else null
+                    match?.let { app ->
+                        query = ""
+                        onLaunch(app.component)
+                    }
+                },
+                onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
+                focusRequester = focusRequester,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
     }
 
     menuApp?.let { app ->
@@ -315,62 +329,103 @@ fun LauncherScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Full-screen settings. Same structure as the home screen: a header row, then a
+ * vertical list of segmented cards, so the two screens read as one app.
+ */
 @Composable
-private fun SettingsSheet(
+private fun SettingsScreen(
     settings: LauncherSettings,
     onChange: (LauncherSettings) -> Unit,
     onClearUsage: () -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 16.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+            }
             Text(
                 text = stringResource(R.string.settings),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            SettingSwitch(
+        }
+
+        Column(
+            modifier = Modifier.padding(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            SettingRow(
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
+                shape = segmentShape(0, 4),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
-            SettingSwitch(
+            SettingRow(
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
+                shape = segmentShape(1, 4),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
-            SettingSwitch(
+            SettingRow(
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
+                shape = segmentShape(2, 4),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
-            TextButton(onClick = onClearUsage, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.clear_usage), color = MaterialTheme.colorScheme.error)
+            Surface(
+                onClick = onClearUsage,
+                modifier = Modifier.fillMaxWidth(),
+                shape = segmentShape(3, 4),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = stringResource(R.string.clear_usage),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SettingSwitch(
+private fun SettingRow(
     label: String,
     checked: Boolean,
+    shape: Shape,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Row(
+            modifier = Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
     }
 }
 
