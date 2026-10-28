@@ -62,6 +62,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -173,6 +174,8 @@ fun LauncherScreen(
     LaunchedEffect(homeKey) {
         query = ""
         if (settings.autoKeyboard) {
+            // Let the launcher draw its first frame before the keyboard starts animating in.
+            withFrameNanos { }
             focusRequester.requestFocus()
             keyboard?.show()
         }
@@ -279,7 +282,6 @@ fun LauncherScreen(
                     AppRow(
                         app = app,
                         shape = segmentShape(index, results.size),
-                        modifier = Modifier.animateItem(),
                         onClick = { onLaunch(app.component) },
                         onLongClick = { menuApp = app },
                     )
@@ -495,12 +497,12 @@ private fun SearchField(
 private fun AppRow(
     app: AppEntry,
     shape: Shape,
-    modifier: Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    // No placement animation: re-sorting by usage must not animate while the keyboard opens.
     Surface(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = shape,
