@@ -80,8 +80,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
@@ -258,7 +256,6 @@ fun LauncherScreen(
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val haptic = LocalHapticFeedback.current
 
     // Start clean and open the keyboard every time the launcher comes to front.
     LaunchedEffect(homeKey) {
@@ -315,14 +312,14 @@ fun LauncherScreen(
     }
 
     val onToggleHidden: (AppEntry) -> Unit = { app ->
-        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+        Haptics.confirm(context)
         val key = app.component.flattenToString()
         if (key in hidden) hiddenStore.show(key) else hiddenStore.hide(key)
         hidden = hiddenStore.load()
     }
 
     val onToggleFavorite: (AppEntry) -> Unit = { app ->
-        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+        Haptics.confirm(context)
         favoritesStore.toggle(app.component.flattenToString())
         favorites = favoritesStore.load()
     }
@@ -431,7 +428,7 @@ fun LauncherScreen(
                 ResultCard(
                     text = "${query.trim()} = ${Calculator.format(calc)}",
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        Haptics.confirm(context)
                         onCopy(Calculator.format(calc))
                     },
                 )
@@ -687,7 +684,7 @@ private fun SettingRow(
     shape: Shape,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = shape,
@@ -706,9 +703,7 @@ private fun SettingRow(
             Switch(
                 checked = checked,
                 onCheckedChange = { on ->
-                    haptic.performHapticFeedback(
-                        if (on) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff,
-                    )
+                    Haptics.tap(context)
                     onCheckedChange(on)
                 },
                 // Icon colours set explicitly: the default tick was too dark to see on the thumb.
