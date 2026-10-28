@@ -24,7 +24,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
@@ -755,28 +755,22 @@ private fun ThemeModeCard(mode: ThemeMode, shape: Shape, onModeChange: (ThemeMod
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            val modeLabels = ThemeMode.entries.associateWith { option ->
-                stringResource(
-                    when (option) {
-                        ThemeMode.SYSTEM -> R.string.theme_system
-                        ThemeMode.LIGHT -> R.string.theme_light
-                        ThemeMode.DARK -> R.string.theme_dark
-                    },
-                )
-            }
-            ButtonGroup(
-                overflowIndicator = { _ -> },
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ThemeMode.entries.forEach { option ->
-                    val text = modeLabels.getValue(option)
-                    toggleableItem(
-                        option == mode,
-                        text,
-                        { onModeChange(option) },
-                        { Text(text) },
+                    val label = when (option) {
+                        ThemeMode.SYSTEM -> R.string.theme_system
+                        ThemeMode.LIGHT -> R.string.theme_light
+                        ThemeMode.DARK -> R.string.theme_dark
+                    }
+                    FilterChip(
+                        selected = option == mode,
+                        onClick = { onModeChange(option) },
+                        label = { Text(stringResource(label)) },
                     )
                 }
             }
