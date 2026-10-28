@@ -41,6 +41,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -640,24 +647,28 @@ private fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SettingRow(
+                icon = Icons.Filled.Home,
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
                 shape = segmentShape(0, 8),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
+                icon = Icons.Filled.Done,
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
                 shape = segmentShape(1, 8),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
+                icon = Icons.Filled.Star,
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
                 shape = segmentShape(2, 8),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
             SettingRow(
+                icon = Icons.Filled.Lock,
                 label = stringResource(R.string.setting_show_hidden),
                 checked = settings.showHidden,
                 shape = segmentShape(3, 8),
@@ -695,8 +706,10 @@ private fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingRow(
+    icon: ImageVector,
     label: String,
     checked: Boolean,
     shape: Shape,
@@ -712,6 +725,21 @@ private fun SettingRow(
             modifier = Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialShapes.Cookie9Sided.toShape())
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,
@@ -778,6 +806,7 @@ private fun ThemeModeCard(mode: ThemeMode, shape: Shape, onModeChange: (ThemeMod
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AccentCard(accent: AccentColor, shape: Shape, onAccentChange: (AccentColor) -> Unit) {
     Surface(
@@ -807,12 +836,12 @@ private fun AccentCard(accent: AccentColor, shape: Shape, onAccentChange: (Accen
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .clip(CircleShape)
+                            .clip(MaterialShapes.Cookie9Sided.toShape())
                             .background(swatch)
                             .border(
                                 width = if (option == accent) 3.dp else 0.dp,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                shape = CircleShape,
+                                shape = MaterialShapes.Cookie9Sided.toShape(),
                             )
                             .clickable { onAccentChange(option) },
                     )
