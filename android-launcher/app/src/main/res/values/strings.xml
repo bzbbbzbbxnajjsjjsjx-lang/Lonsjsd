@@ -7,4 +7,6 @@
     <string name="no_results">Eşleşen uygulama yok</string>
     <string name="app_count">%1$d uygulama</string>
     <string name="app_not_found">Uygulama açılamadı</string>
+    <string name="app_info">Uygulama bilgisi</string>
+    <string name="uninstall">Kaldır</string>
 </resources>

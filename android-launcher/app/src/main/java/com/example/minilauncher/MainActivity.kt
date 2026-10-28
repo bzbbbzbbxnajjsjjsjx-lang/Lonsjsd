@@ -5,12 +5,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,12 +31,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -49,11 +55,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -61,13 +70,20 @@ class MainActivity : ComponentActivity() {
 
     // Bumped every time the launcher is brought to front again (HOME pressed).
     private val homeKey = mutableIntStateOf(0)
+    private val usage by lazy { UsageStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MiniLauncherTheme {
-                LauncherScreen(homeKey = homeKey.intValue, onLaunch = ::launchApp)
+                LauncherScreen(
+                    homeKey = homeKey.intValue,
+                    usage = usage,
+                    onLaunch = ::launchApp,
+                    onAppInfo = ::openAppInfo,
+                    onUninstall = ::uninstallApp,
+                )
             }
         }
     }
@@ -82,26 +98,59 @@ class MainActivity : ComponentActivity() {
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .setComponent(component)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
+        if (start(intent)) usage.record(component)
+    }
+
+    private fun openAppInfo(app: AppEntry) {
+        start(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", app.packageName, null)))
+    }
+
+    private fun uninstallApp(app: AppEntry) {
+        start(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.packageName, null)))
+    }
+
+    /** Starts [intent] and returns false, with a message, if no activity can handle it. */
+    private fun start(intent: Intent): Boolean {
+        return try {
             startActivity(intent)
+            true
         } catch (e: RuntimeException) {
             // ActivityNotFoundException and SecurityException both land here.
             Toast.makeText(this, R.string.app_not_found, Toast.LENGTH_SHORT).show()
+            false
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun LauncherScreen(homeKey: Int, onLaunch: (ComponentName) -> Unit) {
+fun LauncherScreen(
+    homeKey: Int,
+    usage: UsageStore,
+    onLaunch: (ComponentName) -> Unit,
+    onAppInfo: (AppEntry) -> Unit,
+    onUninstall: (AppEntry) -> Unit,
+) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var apps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
     var query by rememberSaveable { mutableStateOf("") }
     var reloadKey by remember { mutableIntStateOf(0) }
+    var usageCounts by remember { mutableStateOf(usage.counts()) }
+    var menuApp by remember { mutableStateOf<AppEntry?>(null) }
 
     // Start clean every time the user comes back to the home screen.
     LaunchedEffect(homeKey) { query = "" }
+
+    // Usage changes while another app is open, so re-read it on every resume.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) usageCounts = usage.counts()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // Reload the list when apps are installed, removed or updated.
     DisposableEffect(context) {
@@ -125,7 +174,7 @@ fun LauncherScreen(homeKey: Int, onLaunch: (ComponentName) -> Unit) {
     }
 
     // Recomputed on every keystroke, so results update instantly.
-    val results = remember(apps, query) { apps.search(query) }
+    val results = remember(apps, query, usageCounts) { apps.search(query, usageCounts) }
 
     Column(
         modifier = Modifier
@@ -178,7 +227,40 @@ fun LauncherScreen(homeKey: Int, onLaunch: (ComponentName) -> Unit) {
                     shape = segmentShape(index, results.size),
                     modifier = Modifier.animateItem(),
                     onClick = { onLaunch(app.component) },
+                    onLongClick = { menuApp = app },
                 )
+            }
+        }
+    }
+
+    menuApp?.let { app ->
+        ModalBottomSheet(onDismissRequest = { menuApp = null }) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+                Text(
+                    text = app.label,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TextButton(
+                    onClick = {
+                        menuApp = null
+                        onAppInfo(app)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.app_info))
+                }
+                TextButton(
+                    onClick = {
+                        menuApp = null
+                        onUninstall(app)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.uninstall), color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
@@ -224,10 +306,12 @@ private fun AppRow(
     shape: Shape,
     modifier: Modifier,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
