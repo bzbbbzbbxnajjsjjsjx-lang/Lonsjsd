@@ -24,7 +24,20 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.toShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.ui.draw.clip
@@ -52,6 +65,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -454,7 +468,13 @@ fun LauncherScreen(
                 )
             }
 
-            if (dockApps.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = dockApps.isNotEmpty(),
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            ) {
                 AppTileRow(
                     apps = dockApps,
                     onLaunch = onLaunch,
@@ -486,7 +506,10 @@ fun LauncherScreen(
     }
 
     menuApp?.let { app ->
-        ModalBottomSheet(onDismissRequest = { menuApp = null }) {
+        ModalBottomSheet(
+            onDismissRequest = { menuApp = null },
+            shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp),
+        ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
                 Text(
                     text = app.label,
@@ -732,22 +755,28 @@ private fun ThemeModeCard(mode: ThemeMode, shape: Shape, onModeChange: (ThemeMod
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ThemeMode.entries.forEach { option ->
-                    val label = when (option) {
+            val modeLabels = ThemeMode.entries.associateWith { option ->
+                stringResource(
+                    when (option) {
                         ThemeMode.SYSTEM -> R.string.theme_system
                         ThemeMode.LIGHT -> R.string.theme_light
                         ThemeMode.DARK -> R.string.theme_dark
-                    }
-                    FilterChip(
-                        selected = option == mode,
-                        onClick = { onModeChange(option) },
-                        label = { Text(stringResource(label)) },
+                    },
+                )
+            }
+            ButtonGroup(
+                overflowIndicator = { _ -> },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            ) {
+                ThemeMode.entries.forEach { option ->
+                    val text = modeLabels.getValue(option)
+                    toggleableItem(
+                        option == mode,
+                        text,
+                        { onModeChange(option) },
+                        { Text(text) },
                     )
                 }
             }
@@ -877,39 +906,54 @@ private fun ResultCard(text: String, onClick: () -> Unit) {
 }
 
 /** Apps as a row of equal tiles, used for both the favourites dock and recent apps. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AppTileRow(
     apps: List<AppEntry>,
     onLaunch: (ComponentName) -> Unit,
     onLongClick: (AppEntry) -> Unit,
 ) {
+    val cookie = MaterialShapes.Cookie9Sided.toShape()
+    val pill = MaterialShapes.Pill.toShape()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        apps.forEach { app ->
-            Surface(
+        apps.forEachIndexed { index, app ->
+            val interaction = remember { MutableInteractionSource() }
+            val pressed by interaction.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (pressed) 0.92f else 1f,
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                label = "tileScale",
+            )
+            SplitButtonLayout(
+                leadingButton = {
+                    SplitButtonDefaults.LeadingButton(
+                        onClick = { onLaunch(app.component) },
+                        interactionSource = interaction,
+                    ) {
+                        Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
+                trailingButton = {
+                    SplitButtonDefaults.TrailingButton(
+                        checked = false,
+                        onCheckedChange = { onLongClick(app) },
+                    ) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                },
                 modifier = Modifier
                     .weight(1f)
-                    .combinedClickable(
-                        onClick = { onLaunch(app.component) },
-                        onLongClick = { onLongClick(app) },
-                    ),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Text(
-                    text = app.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
-                )
-            }
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(if (index % 2 == 0) cookie else pill),
+            )
         }
     }
 }
