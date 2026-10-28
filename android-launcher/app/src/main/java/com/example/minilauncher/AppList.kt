@@ -47,6 +47,18 @@ fun List<AppEntry>.search(query: String, usage: Map<String, Int>): List<AppEntry
     )
 }
 
+/**
+ * The app to open right away while typing, or null. An exact name match opens at once.
+ * Two or more words that leave a single match also open it, so "google maps" is enough.
+ */
+fun List<AppEntry>.autoOpenMatch(query: String, usage: Map<String, Int>): AppEntry? {
+    val q = query.trim()
+    if (q.isEmpty()) return null
+    firstOrNull { it.label.equals(q, ignoreCase = true) }?.let { return it }
+    if (q.split(Regex("\\s+")).size < 2) return null
+    return search(q, usage).singleOrNull()
+}
+
 /** Counts how often each app is opened from the launcher. Stored locally on the device. */
 class UsageStore(context: Context) {
     private val prefs = context.getSharedPreferences("usage", Context.MODE_PRIVATE)

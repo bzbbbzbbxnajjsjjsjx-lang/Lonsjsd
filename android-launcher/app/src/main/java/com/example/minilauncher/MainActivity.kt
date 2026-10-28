@@ -52,10 +52,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,8 +143,15 @@ fun LauncherScreen(
     var usageCounts by remember { mutableStateOf(usage.counts()) }
     var menuApp by remember { mutableStateOf<AppEntry?>(null) }
 
-    // Start clean every time the user comes back to the home screen.
-    LaunchedEffect(homeKey) { query = "" }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    // Start clean and open the keyboard every time the launcher comes to front.
+    LaunchedEffect(homeKey) {
+        query = ""
+        focusRequester.requestFocus()
+        keyboard?.show()
+    }
 
     // Usage changes while another app is open, so re-read it on every resume.
     DisposableEffect(lifecycleOwner) {
@@ -195,24 +205,6 @@ fun LauncherScreen(
             )
         }
 
-        SearchField(
-            query = query,
-            onQueryChange = { query = it },
-            onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
-
-        if (results.isEmpty() && query.isNotBlank()) {
-            Text(
-                text = stringResource(R.string.no_results),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(24.dp),
-            )
-        }
-
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -231,6 +223,32 @@ fun LauncherScreen(
                 )
             }
         }
+
+        if (results.isEmpty() && query.isNotBlank()) {
+            Text(
+                text = stringResource(R.string.no_results),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
+
+        // Search sits at the bottom, within thumb reach, and is focused on open.
+        SearchField(
+            query = query,
+            onQueryChange = { text ->
+                query = text
+                apps.autoOpenMatch(text, usageCounts)?.let { app ->
+                    query = ""
+                    onLaunch(app.component)
+                }
+            },
+            onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
+            focusRequester = focusRequester,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
     }
 
     menuApp?.let { app ->
@@ -271,12 +289,13 @@ private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
+    focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier,
+        modifier = modifier.focusRequester(focusRequester),
         singleLine = true,
         shape = RoundedCornerShape(28.dp),
         placeholder = { Text(stringResource(R.string.search_hint)) },
