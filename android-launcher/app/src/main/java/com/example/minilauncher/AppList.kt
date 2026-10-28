@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 
 /** One launchable app. Only the label is shown; the component is used to start it. */
 data class AppEntry(
@@ -72,6 +75,49 @@ class UsageStore(context: Context) {
     fun record(component: ComponentName) {
         val key = component.flattenToString()
         prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply()
+    }
+}
+
+/**
+ * Last known app list, kept on disk so the grid can paint on the first frame
+ * instead of waiting for PackageManager to answer.
+ */
+class AppCache(context: Context) {
+    private val prefs = context.getSharedPreferences("apps_cache", Context.MODE_PRIVATE)
+
+    fun load(): List<AppEntry> {
+        val raw = prefs.getString(KEY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            List(array.length()) { i ->
+                val item = array.getJSONObject(i)
+                val pkg = item.getString("p")
+                AppEntry(
+                    label = item.getString("l"),
+                    packageName = pkg,
+                    component = ComponentName(pkg, item.getString("c")),
+                )
+            }
+        } catch (e: JSONException) {
+            emptyList()
+        }
+    }
+
+    fun save(apps: List<AppEntry>) {
+        val array = JSONArray()
+        apps.forEach { app ->
+            array.put(
+                JSONObject()
+                    .put("l", app.label)
+                    .put("p", app.packageName)
+                    .put("c", app.component.className),
+            )
+        }
+        prefs.edit().putString(KEY, array.toString()).apply()
+    }
+
+    private companion object {
+        const val KEY = "apps"
     }
 }
 

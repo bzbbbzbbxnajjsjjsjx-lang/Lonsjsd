@@ -5,8 +5,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.LauncherApps
 import android.net.Uri
 import android.os.Bundle
+import android.os.Process
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -104,12 +107,16 @@ class MainActivity : ComponentActivity() {
         homeKey.intValue++
     }
 
+    /** Opens the app the way system launchers do, through LauncherApps. */
     private fun launchApp(component: ComponentName) {
-        val intent = Intent(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER)
-            .setComponent(component)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (start(intent)) usage.record(component)
+        try {
+            getSystemService(LauncherApps::class.java)
+                .startMainActivity(component, Process.myUserHandle(), null, null)
+            usage.record(component)
+        } catch (e: RuntimeException) {
+            // ActivityNotFoundException and SecurityException both land here.
+            Toast.makeText(this, R.string.app_not_found, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openAppInfo(app: AppEntry) {
@@ -146,7 +153,9 @@ fun LauncherScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var apps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
+    val appCache = remember { AppCache(context) }
+    // Starts from the last saved list, so the grid is visible on the first frame.
+    var apps by remember { mutableStateOf(appCache.load()) }
     var query by rememberSaveable { mutableStateOf("") }
     var reloadKey by remember { mutableIntStateOf(0) }
     var usageCounts by remember { mutableStateOf(usage.counts()) }
@@ -193,7 +202,9 @@ fun LauncherScreen(
     }
 
     LaunchedEffect(reloadKey) {
-        apps = withContext(Dispatchers.IO) { loadApps(context.packageManager, context.packageName) }
+        apps = withContext(Dispatchers.IO) {
+            loadApps(context.packageManager, context.packageName).also { appCache.save(it) }
+        }
     }
 
     // Recomputed on every keystroke, so results update instantly.
@@ -244,7 +255,12 @@ fun LauncherScreen(
                     )
                 }
                 IconButton(onClick = { settingsOpen = true }) {
-                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(28.dp),
+                    )
                 }
             }
 
@@ -354,7 +370,12 @@ private fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(28.dp),
+                )
             }
             Text(
                 text = stringResource(R.string.settings),
