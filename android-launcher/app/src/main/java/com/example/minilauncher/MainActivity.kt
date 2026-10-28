@@ -399,10 +399,12 @@ fun LauncherScreen(
             }
 
             if (loading && apps.isEmpty()) {
+                // Large shape shown only on the very first launch, before the app list is cached.
                 LoadingIndicator(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(48.dp),
+                        .padding(top = 96.dp)
+                        .size(120.dp),
                 )
             }
 
