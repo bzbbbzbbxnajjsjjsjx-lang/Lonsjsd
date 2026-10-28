@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
     private val homeKey = mutableIntStateOf(0)
     private val usage by lazy { UsageStore(this) }
     private val settingsStore by lazy { SettingsStore(this) }
+    private val hiddenStore by lazy { HiddenStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +99,7 @@ class MainActivity : ComponentActivity() {
                     homeKey = homeKey.intValue,
                     usage = usage,
                     settingsStore = settingsStore,
+                    hiddenStore = hiddenStore,
                     onLaunch = ::launchApp,
                     onAppInfo = ::openAppInfo,
                     onUninstall = ::uninstallApp,
@@ -150,6 +152,7 @@ fun LauncherScreen(
     homeKey: Int,
     usage: UsageStore,
     settingsStore: SettingsStore,
+    hiddenStore: HiddenStore,
     onLaunch: (ComponentName) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
     onUninstall: (AppEntry) -> Unit,
@@ -166,6 +169,7 @@ fun LauncherScreen(
     var menuApp by remember { mutableStateOf<AppEntry?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(settingsStore.load()) }
+    var hidden by remember { mutableStateOf(hiddenStore.load()) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -214,8 +218,17 @@ fun LauncherScreen(
     }
 
     // Recomputed on every keystroke, so results update instantly.
-    val results = remember(apps, query, usageCounts, settings) {
-        apps.search(query, if (settings.sortByUsage) usageCounts else emptyMap())
+    val visibleApps = remember(apps, hidden, settings) {
+        if (settings.showHidden) apps else apps.filter { it.component.flattenToString() !in hidden }
+    }
+    val results = remember(visibleApps, query, usageCounts, settings) {
+        visibleApps.search(query, if (settings.sortByUsage) usageCounts else emptyMap())
+    }
+
+    val onToggleHidden: (AppEntry) -> Unit = { app ->
+        val key = app.component.flattenToString()
+        if (key in hidden) hiddenStore.show(key) else hiddenStore.hide(key)
+        hidden = hiddenStore.load()
     }
 
     // The system back gesture closes settings instead of leaving the launcher.
@@ -255,7 +268,7 @@ fun LauncherScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(R.string.app_count, apps.size),
+                        text = stringResource(R.string.app_count, visibleApps.size),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -302,7 +315,7 @@ fun LauncherScreen(
                 query = query,
                 onQueryChange = { text ->
                     query = text
-                    val match = if (settings.autoOpen) apps.autoOpenMatch(text, usageCounts) else null
+                    val match = if (settings.autoOpen) visibleApps.autoOpenMatch(text, usageCounts) else null
                     match?.let { app ->
                         query = ""
                         onLaunch(app.component)
@@ -338,6 +351,16 @@ fun LauncherScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.app_info))
+                }
+                TextButton(
+                    onClick = {
+                        menuApp = null
+                        onToggleHidden(app)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    val isHidden = app.component.flattenToString() in hidden
+                    Text(stringResource(if (isHidden) R.string.menu_unhide else R.string.menu_hide))
                 }
                 TextButton(
                     onClick = {
@@ -399,25 +422,31 @@ private fun SettingsScreen(
             SettingRow(
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
-                shape = segmentShape(0, 4),
+                shape = segmentShape(0, 5),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
-                shape = segmentShape(1, 4),
+                shape = segmentShape(1, 5),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
-                shape = segmentShape(2, 4),
+                shape = segmentShape(2, 5),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
+            )
+            SettingRow(
+                label = stringResource(R.string.setting_show_hidden),
+                checked = settings.showHidden,
+                shape = segmentShape(3, 5),
+                onCheckedChange = { onChange(settings.copy(showHidden = it)) },
             )
             Surface(
                 onClick = onClearUsage,
                 modifier = Modifier.fillMaxWidth(),
-                shape = segmentShape(3, 4),
+                shape = segmentShape(4, 5),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
