@@ -15,6 +15,11 @@
     <string name="copied">Sonuç kopyalandı</string>
     <string name="menu_favorite">Favorilere ekle</string>
     <string name="menu_unfavorite">Favorilerden çıkar</string>
+    <string name="setting_theme_mode">Tema</string>
+    <string name="setting_accent">Renk</string>
+    <string name="theme_system">Sistem</string>
+    <string name="theme_light">Açık</string>
+    <string name="theme_dark">Koyu</string>
     <string name="menu_hide">Gizle</string>
     <string name="menu_unhide">Listede göster</string>
     <string name="setting_show_hidden">Gizli uygulamaları göster</string>

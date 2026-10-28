@@ -18,6 +18,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -96,18 +102,25 @@ class MainActivity : ComponentActivity() {
     private val homeKey = mutableIntStateOf(0)
     private val usage by lazy { UsageStore(this) }
     private val settingsStore by lazy { SettingsStore(this) }
+    // Held here, not in the screen, so a theme change re-themes the whole launcher.
+    private var settings by mutableStateOf(LauncherSettings())
     private val hiddenStore by lazy { HiddenStore(this) }
     private val favoritesStore by lazy { FavoritesStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        settings = settingsStore.load()
         setContent {
-            MiniLauncherTheme {
+            MiniLauncherTheme(themeMode = settings.themeMode, accent = settings.accent) {
                 LauncherScreen(
                     homeKey = homeKey.intValue,
                     usage = usage,
-                    settingsStore = settingsStore,
+                    settings = settings,
+                    onSettingsChange = { updated ->
+                        settings = updated
+                        settingsStore.save(updated)
+                    },
                     hiddenStore = hiddenStore,
                     favoritesStore = favoritesStore,
                     onLaunch = ::launchApp,
@@ -172,7 +185,8 @@ class MainActivity : ComponentActivity() {
 fun LauncherScreen(
     homeKey: Int,
     usage: UsageStore,
-    settingsStore: SettingsStore,
+    settings: LauncherSettings,
+    onSettingsChange: (LauncherSettings) -> Unit,
     hiddenStore: HiddenStore,
     favoritesStore: FavoritesStore,
     onLaunch: (ComponentName) -> Unit,
@@ -192,7 +206,6 @@ fun LauncherScreen(
     var usageCounts by remember { mutableStateOf(usage.counts()) }
     var menuApp by remember { mutableStateOf<AppEntry?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
-    var settings by remember { mutableStateOf(settingsStore.load()) }
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
     var favorites by remember { mutableStateOf(favoritesStore.load()) }
 
@@ -277,10 +290,7 @@ fun LauncherScreen(
     if (settingsOpen) {
         SettingsScreen(
             settings = settings,
-            onChange = { updated ->
-                settings = updated
-                settingsStore.save(updated)
-            },
+            onChange = onSettingsChange,
             onClearUsage = {
                 usage.clear()
                 usageCounts = usage.counts()
@@ -492,31 +502,41 @@ private fun SettingsScreen(
             SettingRow(
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
-                shape = segmentShape(0, 5),
+                shape = segmentShape(0, 7),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
-                shape = segmentShape(1, 5),
+                shape = segmentShape(1, 7),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
-                shape = segmentShape(2, 5),
+                shape = segmentShape(2, 7),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_show_hidden),
                 checked = settings.showHidden,
-                shape = segmentShape(3, 5),
+                shape = segmentShape(3, 7),
                 onCheckedChange = { onChange(settings.copy(showHidden = it)) },
+            )
+            ThemeModeCard(
+                mode = settings.themeMode,
+                shape = segmentShape(4, 7),
+                onModeChange = { onChange(settings.copy(themeMode = it)) },
+            )
+            AccentCard(
+                accent = settings.accent,
+                shape = segmentShape(5, 7),
+                onAccentChange = { onChange(settings.copy(accent = it)) },
             )
             Surface(
                 onClick = onClearUsage,
                 modifier = Modifier.fillMaxWidth(),
-                shape = segmentShape(4, 5),
+                shape = segmentShape(6, 7),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
@@ -575,6 +595,86 @@ private fun SettingRow(
                     )
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeCard(mode: ThemeMode, shape: Shape, onModeChange: (ThemeMode) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Text(
+                text = stringResource(R.string.setting_theme_mode),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ThemeMode.entries.forEach { option ->
+                    val label = when (option) {
+                        ThemeMode.SYSTEM -> R.string.theme_system
+                        ThemeMode.LIGHT -> R.string.theme_light
+                        ThemeMode.DARK -> R.string.theme_dark
+                    }
+                    FilterChip(
+                        selected = option == mode,
+                        onClick = { onModeChange(option) },
+                        label = { Text(stringResource(label)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccentCard(accent: AccentColor, shape: Shape, onAccentChange: (AccentColor) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Text(
+                text = stringResource(R.string.setting_accent),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                AccentColor.entries.forEach { option ->
+                    // The dynamic option shows the wallpaper colour; the others show their own.
+                    val swatch = if (option == AccentColor.DYNAMIC) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        option.lightPrimary
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(swatch)
+                            .border(
+                                width = if (option == accent) 3.dp else 0.dp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                shape = CircleShape,
+                            )
+                            .clickable { onAccentChange(option) },
+                    )
+                }
+            }
         }
     }
 }

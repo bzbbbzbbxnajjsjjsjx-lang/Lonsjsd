@@ -8,6 +8,8 @@ data class LauncherSettings(
     val autoOpen: Boolean = true,
     val sortByUsage: Boolean = true,
     val showHidden: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val accent: AccentColor = AccentColor.DYNAMIC,
 )
 
 class SettingsStore(context: Context) {
@@ -28,8 +30,14 @@ class SettingsStore(context: Context) {
             autoOpen = prefs.getBoolean(KEY_AUTO_OPEN, true),
             sortByUsage = prefs.getBoolean(KEY_SORT_USAGE, true),
             showHidden = prefs.getBoolean(KEY_SHOW_HIDDEN, false),
+            themeMode = enumOrDefault(prefs.getString(KEY_THEME_MODE, null), ThemeMode.SYSTEM),
+            accent = enumOrDefault(prefs.getString(KEY_ACCENT, null), AccentColor.DYNAMIC),
         )
     }
+
+    /** Reads a saved enum name, falling back to [default] for missing or unknown values. */
+    private inline fun <reified T : Enum<T>> enumOrDefault(name: String?, default: T): T =
+        enumValues<T>().firstOrNull { it.name == name } ?: default
 
     fun save(settings: LauncherSettings) {
         prefs.edit()
@@ -37,6 +45,8 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_AUTO_OPEN, settings.autoOpen)
             .putBoolean(KEY_SORT_USAGE, settings.sortByUsage)
             .putBoolean(KEY_SHOW_HIDDEN, settings.showHidden)
+            .putString(KEY_THEME_MODE, settings.themeMode.name)
+            .putString(KEY_ACCENT, settings.accent.name)
             .apply()
     }
 
@@ -47,6 +57,8 @@ class SettingsStore(context: Context) {
         const val KEY_AUTO_OPEN = "auto_open"
         const val KEY_SORT_USAGE = "sort_usage"
         const val KEY_SHOW_HIDDEN = "show_hidden"
+        const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_ACCENT = "accent"
     }
 }
 
