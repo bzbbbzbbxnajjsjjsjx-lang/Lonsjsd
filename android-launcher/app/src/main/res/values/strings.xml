@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mini Launcher</string>
+    <string name="screen_title">Uygulamalar</string>
+    <string name="search_hint">Uygulama ara</string>
+    <string name="clear_search">Temizle</string>
+    <string name="no_results">Eşleşen uygulama yok</string>
+    <string name="app_count">%1$d uygulama</string>
+    <string name="app_not_found">Uygulama açılamadı</string>
+</resources>
