@@ -38,7 +38,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -482,7 +484,18 @@ private fun SettingRow(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                // Tick when on, cross when off, so the state reads without colour.
+                thumbContent = {
+                    Icon(
+                        imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+            )
         }
     }
 }
