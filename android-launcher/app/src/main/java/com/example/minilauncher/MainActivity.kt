@@ -337,11 +337,6 @@ fun LauncherScreen(
         favorites.mapNotNull { key -> visibleApps.firstOrNull { it.component.flattenToString() == key } }
     }
 
-    val recentApps = remember(visibleApps, recent, dockApps) {
-        recent.mapNotNull { key -> visibleApps.firstOrNull { it.component.flattenToString() == key } }
-            .filter { app -> dockApps.none { it.component == app.component } }
-    }
-
     val systemMatches = remember(query) { matchingSystemShortcuts(query).take(2) }
 
     // Shortcuts of the app whose menu is open. Empty when this launcher is not the default home app.
@@ -454,20 +449,6 @@ fun LauncherScreen(
                 ResultCard(
                     text = stringResource(R.string.web_search, query.trim()),
                     onClick = { onWebSearch(query.trim()) },
-                )
-            }
-
-            if (query.isBlank() && recentApps.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.recent_apps),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
-                )
-                AppTileRow(
-                    apps = recentApps,
-                    onLaunch = onLaunch,
-                    onLongClick = { menuApp = it },
                 )
             }
 
