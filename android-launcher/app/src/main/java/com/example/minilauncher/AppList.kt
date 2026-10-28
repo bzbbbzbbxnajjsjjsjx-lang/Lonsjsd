@@ -65,17 +65,33 @@ fun List<AppEntry>.autoOpenMatch(query: String, usage: Map<String, Int>): AppEnt
 /** Counts how often each app is opened from the launcher. Stored locally on the device. */
 class UsageStore(context: Context) {
     private val prefs = context.getSharedPreferences("usage", Context.MODE_PRIVATE)
+    private val recentPrefs = context.getSharedPreferences("recent", Context.MODE_PRIVATE)
 
     fun counts(): Map<String, Int> = prefs.all.mapValues { (it.value as? Int) ?: 0 }
 
     fun clear() {
         prefs.edit().clear().apply()
+        recentPrefs.edit().clear().apply()
+    }
+
+    fun replaceAll(counts: Map<String, Int>) {
+        val edit = prefs.edit().clear()
+        counts.forEach { (key, count) -> edit.putInt(key, count) }
+        edit.apply()
     }
 
     fun record(component: ComponentName) {
         val key = component.flattenToString()
         prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply()
+        recentPrefs.edit().putLong(key, System.currentTimeMillis()).apply()
     }
+
+    /** Keys of the most recently opened apps, newest first. */
+    fun recentKeys(limit: Int): List<String> = recentPrefs.all
+        .mapNotNull { (key, time) -> (time as? Long)?.let { key to it } }
+        .sortedByDescending { it.second }
+        .take(limit)
+        .map { it.first }
 }
 
 /**

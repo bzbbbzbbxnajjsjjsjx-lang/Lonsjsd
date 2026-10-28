@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.LauncherApps
+import android.content.pm.ShortcutInfo
 import android.net.Uri
 import android.os.Bundle
 import android.os.Process
@@ -17,6 +18,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -107,6 +109,30 @@ class MainActivity : ComponentActivity() {
     private val hiddenStore by lazy { HiddenStore(this) }
     private val favoritesStore by lazy { FavoritesStore(this) }
 
+    private val createBackup = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        uri ?: return@registerForActivityResult
+        val backup = LauncherBackup(settings, favoritesStore.load(), hiddenStore.load(), usage.counts())
+        contentResolver.openOutputStream(uri)?.use { it.write(BackupCodec.encode(backup).toByteArray()) }
+        Toast.makeText(this, R.string.backup_done, Toast.LENGTH_SHORT).show()
+    }
+
+    private val restoreBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@registerForActivityResult
+        try {
+            val text = contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }.orEmpty()
+            val backup = BackupCodec.decode(text)
+            settingsStore.save(backup.settings)
+            favoritesStore.replaceAll(backup.favorites)
+            hiddenStore.replaceAll(backup.hidden)
+            usage.replaceAll(backup.usage)
+            recreate()
+        } catch (e: Exception) {
+            Toast.makeText(this, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -128,6 +154,10 @@ class MainActivity : ComponentActivity() {
                     onUninstall = ::uninstallApp,
                     onWebSearch = ::webSearch,
                     onCopy = ::copyText,
+                    onShortcut = ::startShortcut,
+                    onSystemPage = ::openSystemPage,
+                    onBackup = { createBackup.launch("minilauncher-yedek.json") },
+                    onRestore = { restoreBackup.launch(arrayOf("application/json", "text/plain")) },
                 )
             }
         }
@@ -157,6 +187,18 @@ class MainActivity : ComponentActivity() {
     private fun copyText(text: String) {
         getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("result", text))
         Toast.makeText(this, R.string.copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun startShortcut(info: ShortcutInfo) {
+        try {
+            getSystemService(LauncherApps::class.java).startShortcut(info, null, null)
+        } catch (e: RuntimeException) {
+            Toast.makeText(this, R.string.app_not_found, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openSystemPage(action: String) {
+        start(Intent(action))
     }
 
     private fun openAppInfo(app: AppEntry) {
@@ -194,6 +236,10 @@ fun LauncherScreen(
     onUninstall: (AppEntry) -> Unit,
     onWebSearch: (String) -> Unit,
     onCopy: (String) -> Unit,
+    onShortcut: (ShortcutInfo) -> Unit,
+    onSystemPage: (String) -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -208,6 +254,7 @@ fun LauncherScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
     var favorites by remember { mutableStateOf(favoritesStore.load()) }
+    var recent by remember { mutableStateOf(usage.recentKeys(3)) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -227,7 +274,10 @@ fun LauncherScreen(
     // Usage changes while another app is open, so re-read it on every resume.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) usageCounts = usage.counts()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                usageCounts = usage.counts()
+                recent = usage.recentKeys(3)
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -277,8 +327,25 @@ fun LauncherScreen(
         favorites = favoritesStore.load()
     }
 
+    val onMoveFavorite: (AppEntry, Int) -> Unit = { app, delta ->
+        favoritesStore.move(app.component.flattenToString(), delta)
+        favorites = favoritesStore.load()
+    }
+
     val dockApps = remember(visibleApps, favorites) {
         favorites.mapNotNull { key -> visibleApps.firstOrNull { it.component.flattenToString() == key } }
+    }
+
+    val recentApps = remember(visibleApps, recent, dockApps) {
+        recent.mapNotNull { key -> visibleApps.firstOrNull { it.component.flattenToString() == key } }
+            .filter { app -> dockApps.none { it.component == app.component } }
+    }
+
+    val systemMatches = remember(query) { matchingSystemShortcuts(query).take(2) }
+
+    // Shortcuts of the app whose menu is open. Empty when this launcher is not the default home app.
+    val shortcuts = remember(menuApp) {
+        menuApp?.let { loadAppShortcuts(context, it.packageName) } ?: emptyList()
     }
 
     // A plain sum typed in the search box is shown as a result, not searched for.
@@ -295,6 +362,8 @@ fun LauncherScreen(
                 usage.clear()
                 usageCounts = usage.counts()
             },
+            onBackup = onBackup,
+            onRestore = onRestore,
             onBack = { settingsOpen = false },
         )
     } else {
@@ -351,6 +420,13 @@ fun LauncherScreen(
                 }
             }
 
+            systemMatches.forEach { shortcut ->
+                ResultCard(
+                    text = stringResource(shortcut.labelRes),
+                    onClick = { onSystemPage(shortcut.action) },
+                )
+            }
+
             if (calc != null) {
                 ResultCard(
                     text = "${query.trim()} = ${Calculator.format(calc)}",
@@ -372,8 +448,22 @@ fun LauncherScreen(
                 )
             }
 
+            if (query.isBlank() && recentApps.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.recent_apps),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
+                )
+                AppTileRow(
+                    apps = recentApps,
+                    onLaunch = onLaunch,
+                    onLongClick = { menuApp = it },
+                )
+            }
+
             if (dockApps.isNotEmpty()) {
-                FavoritesDock(
+                AppTileRow(
                     apps = dockApps,
                     onLaunch = onLaunch,
                     onLongClick = { menuApp = it },
@@ -422,6 +512,17 @@ fun LauncherScreen(
                 ) {
                     Text(stringResource(R.string.app_info))
                 }
+                shortcuts.forEach { info ->
+                    TextButton(
+                        onClick = {
+                            menuApp = null
+                            onShortcut(info)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(info.shortLabel?.toString() ?: info.id)
+                    }
+                }
                 TextButton(
                     onClick = {
                         menuApp = null
@@ -431,6 +532,28 @@ fun LauncherScreen(
                 ) {
                     val isFavorite = app.component.flattenToString() in favorites
                     Text(stringResource(if (isFavorite) R.string.menu_unfavorite else R.string.menu_favorite))
+                }
+                if (app.component.flattenToString() in favorites) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        TextButton(
+                            onClick = {
+                                menuApp = null
+                                onMoveFavorite(app, -1)
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(R.string.menu_move_left))
+                        }
+                        TextButton(
+                            onClick = {
+                                menuApp = null
+                                onMoveFavorite(app, 1)
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(R.string.menu_move_right))
+                        }
+                    }
                 }
                 TextButton(
                     onClick = {
@@ -465,6 +588,8 @@ private fun SettingsScreen(
     settings: LauncherSettings,
     onChange: (LauncherSettings) -> Unit,
     onClearUsage: () -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
@@ -502,41 +627,46 @@ private fun SettingsScreen(
             SettingRow(
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
-                shape = segmentShape(0, 7),
+                shape = segmentShape(0, 8),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
-                shape = segmentShape(1, 7),
+                shape = segmentShape(1, 8),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
-                shape = segmentShape(2, 7),
+                shape = segmentShape(2, 8),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
             SettingRow(
                 label = stringResource(R.string.setting_show_hidden),
                 checked = settings.showHidden,
-                shape = segmentShape(3, 7),
+                shape = segmentShape(3, 8),
                 onCheckedChange = { onChange(settings.copy(showHidden = it)) },
             )
             ThemeModeCard(
                 mode = settings.themeMode,
-                shape = segmentShape(4, 7),
+                shape = segmentShape(4, 8),
                 onModeChange = { onChange(settings.copy(themeMode = it)) },
             )
             AccentCard(
                 accent = settings.accent,
-                shape = segmentShape(5, 7),
+                shape = segmentShape(5, 8),
                 onAccentChange = { onChange(settings.copy(accent = it)) },
+            )
+            BackupCard(
+                shape = segmentShape(6, 8),
+                onBackup = onBackup,
+                onRestore = onRestore,
             )
             Surface(
                 onClick = onClearUsage,
                 modifier = Modifier.fillMaxWidth(),
-                shape = segmentShape(6, 7),
+                shape = segmentShape(7, 8),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
@@ -680,6 +810,27 @@ private fun AccentCard(accent: AccentColor, shape: Shape, onAccentChange: (Accen
 }
 
 @Composable
+private fun BackupCard(shape: Shape, onBackup: () -> Unit, onRestore: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Text(
+                text = stringResource(R.string.setting_backup),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onBackup) { Text(stringResource(R.string.backup_export)) }
+                TextButton(onClick = onRestore) { Text(stringResource(R.string.backup_import)) }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
@@ -735,9 +886,9 @@ private fun ResultCard(text: String, onClick: () -> Unit) {
     }
 }
 
-/** Pinned apps as a row of equal tiles, just above the search bar. */
+/** Apps as a row of equal tiles, used for both the favourites dock and recent apps. */
 @Composable
-private fun FavoritesDock(
+private fun AppTileRow(
     apps: List<AppEntry>,
     onLaunch: (ComponentName) -> Unit,
     onLongClick: (AppEntry) -> Unit,

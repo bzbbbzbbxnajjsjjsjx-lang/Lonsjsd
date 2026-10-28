@@ -27,4 +27,19 @@
     <string name="setting_auto_open">Tam isim yazınca uygulamayı aç</string>
     <string name="setting_sort_usage">Sık kullanılanları üstte göster</string>
     <string name="clear_usage">Kullanım geçmişini temizle</string>
+    <string name="sys_wifi">Wi-Fi ayarları</string>
+    <string name="sys_bluetooth">Bluetooth ayarları</string>
+    <string name="sys_display">Ekran ayarları</string>
+    <string name="sys_sound">Ses ayarları</string>
+    <string name="sys_location">Konum ayarları</string>
+    <string name="sys_battery">Pil kullanımı</string>
+    <string name="sys_apps">Uygulama ayarları</string>
+    <string name="recent_apps">Son açılanlar</string>
+    <string name="menu_move_left">Sola taşı</string>
+    <string name="menu_move_right">Sağa taşı</string>
+    <string name="setting_backup">Yedek</string>
+    <string name="backup_export">Yedekle</string>
+    <string name="backup_import">Geri yükle</string>
+    <string name="backup_done">Yedek kaydedildi</string>
+    <string name="restore_failed">Yedek okunamadı</string>
 </resources>

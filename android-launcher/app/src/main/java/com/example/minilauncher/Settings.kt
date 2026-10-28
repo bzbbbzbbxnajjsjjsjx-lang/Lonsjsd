@@ -76,6 +76,10 @@ class HiddenStore(context: Context) {
         prefs.edit().putStringSet(KEY, load() - key).apply()
     }
 
+    fun replaceAll(keys: Set<String>) {
+        prefs.edit().putStringSet(KEY, keys).apply()
+    }
+
     private companion object {
         const val KEY = "keys"
     }

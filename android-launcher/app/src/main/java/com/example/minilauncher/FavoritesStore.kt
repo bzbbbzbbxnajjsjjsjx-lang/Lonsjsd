@@ -20,6 +20,21 @@ class FavoritesStore(context: Context) {
         prefs.edit().putString(KEY, current.joinToString("\n")).apply()
     }
 
+    /** Moves [key] one place left (delta -1) or right (delta 1) inside the dock. */
+    fun move(key: String, delta: Int) {
+        val current = load().toMutableList()
+        val from = current.indexOf(key)
+        val to = from + delta
+        if (from < 0 || to !in current.indices) return
+        current.removeAt(from)
+        current.add(to, key)
+        prefs.edit().putString(KEY, current.joinToString("\n")).apply()
+    }
+
+    fun replaceAll(keys: List<String>) {
+        prefs.edit().putString(KEY, keys.take(MAX_SIZE).joinToString("\n")).apply()
+    }
+
     private companion object {
         const val KEY = "keys"
         const val MAX_SIZE = 5
