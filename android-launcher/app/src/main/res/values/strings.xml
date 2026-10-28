@@ -11,6 +11,10 @@
     <string name="uninstall">Kaldır</string>
     <string name="settings">Ayarlar</string>
     <string name="back">Geri</string>
+    <string name="web_search">Google\'da ara: %1$s</string>
+    <string name="copied">Sonuç kopyalandı</string>
+    <string name="menu_favorite">Favorilere ekle</string>
+    <string name="menu_unfavorite">Favorilerden çıkar</string>
     <string name="menu_hide">Gizle</string>
     <string name="menu_unhide">Listede göster</string>
     <string name="setting_show_hidden">Gizli uygulamaları göster</string>

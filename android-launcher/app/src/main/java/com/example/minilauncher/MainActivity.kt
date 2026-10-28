@@ -1,6 +1,8 @@
 package com.example.minilauncher
 
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -77,6 +79,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -92,6 +95,7 @@ class MainActivity : ComponentActivity() {
     private val usage by lazy { UsageStore(this) }
     private val settingsStore by lazy { SettingsStore(this) }
     private val hiddenStore by lazy { HiddenStore(this) }
+    private val favoritesStore by lazy { FavoritesStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,9 +107,12 @@ class MainActivity : ComponentActivity() {
                     usage = usage,
                     settingsStore = settingsStore,
                     hiddenStore = hiddenStore,
+                    favoritesStore = favoritesStore,
                     onLaunch = ::launchApp,
                     onAppInfo = ::openAppInfo,
                     onUninstall = ::uninstallApp,
+                    onWebSearch = ::webSearch,
+                    onCopy = ::copyText,
                 )
             }
         }
@@ -126,6 +133,15 @@ class MainActivity : ComponentActivity() {
             // ActivityNotFoundException and SecurityException both land here.
             Toast.makeText(this, R.string.app_not_found, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun webSearch(query: String) {
+        start(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query))))
+    }
+
+    private fun copyText(text: String) {
+        getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("result", text))
+        Toast.makeText(this, R.string.copied, Toast.LENGTH_SHORT).show()
     }
 
     private fun openAppInfo(app: AppEntry) {
@@ -156,9 +172,12 @@ fun LauncherScreen(
     usage: UsageStore,
     settingsStore: SettingsStore,
     hiddenStore: HiddenStore,
+    favoritesStore: FavoritesStore,
     onLaunch: (ComponentName) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
     onUninstall: (AppEntry) -> Unit,
+    onWebSearch: (String) -> Unit,
+    onCopy: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -173,6 +192,7 @@ fun LauncherScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(settingsStore.load()) }
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
+    var favorites by remember { mutableStateOf(favoritesStore.load()) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -233,6 +253,18 @@ fun LauncherScreen(
         if (key in hidden) hiddenStore.show(key) else hiddenStore.hide(key)
         hidden = hiddenStore.load()
     }
+
+    val onToggleFavorite: (AppEntry) -> Unit = { app ->
+        favoritesStore.toggle(app.component.flattenToString())
+        favorites = favoritesStore.load()
+    }
+
+    val dockApps = remember(visibleApps, favorites) {
+        favorites.mapNotNull { key -> visibleApps.firstOrNull { it.component.flattenToString() == key } }
+    }
+
+    // A plain sum typed in the search box is shown as a result, not searched for.
+    val calc = remember(query) { Calculator.evaluate(query) }
 
     // The system back gesture closes settings instead of leaving the launcher.
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
@@ -304,12 +336,29 @@ fun LauncherScreen(
                 }
             }
 
-            if (results.isEmpty() && query.isNotBlank()) {
+            if (calc != null) {
+                ResultCard(
+                    text = "${query.trim()} = ${Calculator.format(calc)}",
+                    onClick = { onCopy(Calculator.format(calc)) },
+                )
+            } else if (results.isEmpty() && query.isNotBlank()) {
                 Text(
                     text = stringResource(R.string.no_results),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+                ResultCard(
+                    text = stringResource(R.string.web_search, query.trim()),
+                    onClick = { onWebSearch(query.trim()) },
+                )
+            }
+
+            if (dockApps.isNotEmpty()) {
+                FavoritesDock(
+                    apps = dockApps,
+                    onLaunch = onLaunch,
+                    onLongClick = { menuApp = it },
                 )
             }
 
@@ -354,6 +403,16 @@ fun LauncherScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.app_info))
+                }
+                TextButton(
+                    onClick = {
+                        menuApp = null
+                        onToggleFavorite(app)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    val isFavorite = app.component.flattenToString() in favorites
+                    Text(stringResource(if (isFavorite) R.string.menu_unfavorite else R.string.menu_favorite))
                 }
                 TextButton(
                     onClick = {
@@ -539,6 +598,65 @@ private fun SearchField(
             disabledIndicatorColor = Color.Transparent,
         ),
     )
+}
+
+@Composable
+private fun ResultCard(text: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+        )
+    }
+}
+
+/** Pinned apps as a row of equal tiles, just above the search bar. */
+@Composable
+private fun FavoritesDock(
+    apps: List<AppEntry>,
+    onLaunch: (ComponentName) -> Unit,
+    onLongClick: (AppEntry) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        apps.forEach { app ->
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = { onLaunch(app.component) },
+                        onLongClick = { onLongClick(app) },
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = app.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
