@@ -393,6 +393,14 @@ fun LauncherScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(onClick = { settingsOpen = true }) {
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
 
             if (loading && apps.isEmpty()) {
@@ -469,23 +477,6 @@ fun LauncherScreen(
                     onLaunch = onLaunch,
                     onLongClick = { menuApp = it },
                 )
-            }
-
-            // Settings sits on a floating toolbar just above the search bar, within thumb reach.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                HorizontalFloatingToolbar(expanded = true) {
-                    IconButton(onClick = { settingsOpen = true }) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                }
             }
 
             // Search sits at the bottom, within thumb reach, and is focused on open.
