@@ -25,6 +25,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -253,6 +255,7 @@ fun LauncherScreen(
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
     var favorites by remember { mutableStateOf(favoritesStore.load()) }
     var recent by remember { mutableStateOf(usage.recentKeys(3)) }
+    var loading by remember { mutableStateOf(true) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -301,6 +304,7 @@ fun LauncherScreen(
         apps = withContext(Dispatchers.IO) {
             loadApps(context.packageManager, context.packageName).also { appCache.save(it) }
         }
+        loading = false
     }
 
     // Recomputed on every keystroke, so results update instantly.
@@ -389,14 +393,14 @@ fun LauncherScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { settingsOpen = true }) {
-                    Icon(
-                        Icons.Filled.Settings,
-                        contentDescription = stringResource(R.string.settings),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
+            }
+
+            if (loading && apps.isEmpty()) {
+                LoadingIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(48.dp),
+                )
             }
 
             LazyColumn(
@@ -465,6 +469,23 @@ fun LauncherScreen(
                     onLaunch = onLaunch,
                     onLongClick = { menuApp = it },
                 )
+            }
+
+            // Settings sits on a floating toolbar just above the search bar, within thumb reach.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                HorizontalFloatingToolbar(expanded = true) {
+                    IconButton(onClick = { settingsOpen = true }) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
             }
 
             // Search sits at the bottom, within thumb reach, and is focused on open.
