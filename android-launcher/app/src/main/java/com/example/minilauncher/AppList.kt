@@ -65,6 +65,10 @@ class UsageStore(context: Context) {
 
     fun counts(): Map<String, Int> = prefs.all.mapValues { (it.value as? Int) ?: 0 }
 
+    fun clear() {
+        prefs.edit().clear().apply()
+    }
+
     fun record(component: ComponentName) {
         val key = component.flattenToString()
         prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply()

@@ -17,6 +17,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -51,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -74,6 +77,7 @@ class MainActivity : ComponentActivity() {
     // Bumped every time the launcher is brought to front again (HOME pressed).
     private val homeKey = mutableIntStateOf(0)
     private val usage by lazy { UsageStore(this) }
+    private val settingsStore by lazy { SettingsStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +87,7 @@ class MainActivity : ComponentActivity() {
                 LauncherScreen(
                     homeKey = homeKey.intValue,
                     usage = usage,
+                    settingsStore = settingsStore,
                     onLaunch = ::launchApp,
                     onAppInfo = ::openAppInfo,
                     onUninstall = ::uninstallApp,
@@ -130,6 +135,7 @@ class MainActivity : ComponentActivity() {
 fun LauncherScreen(
     homeKey: Int,
     usage: UsageStore,
+    settingsStore: SettingsStore,
     onLaunch: (ComponentName) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
     onUninstall: (AppEntry) -> Unit,
@@ -142,6 +148,8 @@ fun LauncherScreen(
     var reloadKey by remember { mutableIntStateOf(0) }
     var usageCounts by remember { mutableStateOf(usage.counts()) }
     var menuApp by remember { mutableStateOf<AppEntry?>(null) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var settings by remember { mutableStateOf(settingsStore.load()) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -149,8 +157,10 @@ fun LauncherScreen(
     // Start clean and open the keyboard every time the launcher comes to front.
     LaunchedEffect(homeKey) {
         query = ""
-        focusRequester.requestFocus()
-        keyboard?.show()
+        if (settings.autoKeyboard) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
     }
 
     // Usage changes while another app is open, so re-read it on every resume.
@@ -184,7 +194,9 @@ fun LauncherScreen(
     }
 
     // Recomputed on every keystroke, so results update instantly.
-    val results = remember(apps, query, usageCounts) { apps.search(query, usageCounts) }
+    val results = remember(apps, query, usageCounts, settings) {
+        apps.search(query, if (settings.sortByUsage) usageCounts else emptyMap())
+    }
 
     Column(
         modifier = Modifier
@@ -203,6 +215,9 @@ fun LauncherScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TextButton(onClick = { settingsOpen = true }) {
+                Text(stringResource(R.string.settings))
+            }
         }
 
         LazyColumn(
@@ -238,7 +253,8 @@ fun LauncherScreen(
             query = query,
             onQueryChange = { text ->
                 query = text
-                apps.autoOpenMatch(text, usageCounts)?.let { app ->
+                val match = if (settings.autoOpen) apps.autoOpenMatch(text, usageCounts) else null
+                match?.let { app ->
                     query = ""
                     onLaunch(app.component)
                 }
@@ -248,6 +264,21 @@ fun LauncherScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+
+    if (settingsOpen) {
+        SettingsSheet(
+            settings = settings,
+            onChange = { updated ->
+                settings = updated
+                settingsStore.save(updated)
+            },
+            onClearUsage = {
+                usage.clear()
+                usageCounts = usage.counts()
+            },
+            onDismiss = { settingsOpen = false },
         )
     }
 
@@ -281,6 +312,65 @@ fun LauncherScreen(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsSheet(
+    settings: LauncherSettings,
+    onChange: (LauncherSettings) -> Unit,
+    onClearUsage: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+            Text(
+                text = stringResource(R.string.settings),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            SettingSwitch(
+                label = stringResource(R.string.setting_auto_keyboard),
+                checked = settings.autoKeyboard,
+                onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
+            )
+            SettingSwitch(
+                label = stringResource(R.string.setting_auto_open),
+                checked = settings.autoOpen,
+                onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
+            )
+            SettingSwitch(
+                label = stringResource(R.string.setting_sort_usage),
+                checked = settings.sortByUsage,
+                onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
+            )
+            TextButton(onClick = onClearUsage, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.clear_usage), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
