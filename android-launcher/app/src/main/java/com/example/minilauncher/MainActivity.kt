@@ -51,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -487,6 +488,11 @@ private fun SettingRow(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                // Icon colours set explicitly: the default tick was too dark to see on the thumb.
+                colors = SwitchDefaults.colors(
+                    checkedIconColor = MaterialTheme.colorScheme.primary,
+                    uncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ),
                 // Tick when on, cross when off, so the state reads without colour.
                 thumbContent = {
                     Icon(
