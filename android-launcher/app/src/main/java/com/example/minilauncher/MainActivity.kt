@@ -21,6 +21,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -287,6 +289,8 @@ fun LauncherScreen(
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
     var favorites by remember { mutableStateOf(favoritesStore.load()) }
     var recent by remember { mutableStateOf(usage.recentKeys(3)) }
+    val searchHistory = remember { SearchHistory(context) }
+    var searches by remember { mutableStateOf(searchHistory.load()) }
     var loading by remember { mutableStateOf(true) }
 
     val focusRequester = remember { FocusRequester() }
@@ -422,11 +426,6 @@ fun LauncherScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.screen_title),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
                         text = stringResource(R.string.app_count, visibleApps.size),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -500,6 +499,30 @@ fun LauncherScreen(
                 )
             }
 
+            if (query.isBlank() && searches.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.recent_searches),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    searches.forEach { past ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { query = past },
+                            label = { Text(past) },
+                        )
+                    }
+                }
+            }
+
             AnimatedVisibility(
                 visible = settings.showDock && dockApps.isNotEmpty(),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
@@ -520,12 +543,25 @@ fun LauncherScreen(
                 onQueryChange = { text ->
                     query = text
                     val match = if (settings.autoOpen) visibleApps.autoOpenMatch(text, usageCounts) else null
-                    match?.let { app ->
+                    if (text.trim() == "/ayarlar") {
                         query = ""
-                        onLaunch(app.component)
+                        settingsOpen = true
+                    } else {
+                        match?.let { app ->
+                            query = ""
+                            searchHistory.add(text)
+                            searches = searchHistory.load()
+                            onLaunch(app.component)
+                        }
                     }
                 },
-                onSearch = { results.firstOrNull()?.let { onLaunch(it.component) } },
+                onSearch = {
+                    results.firstOrNull()?.let {
+                        searchHistory.add(query)
+                        searches = searchHistory.load()
+                        onLaunch(it.component)
+                    }
+                },
                 focusRequester = focusRequester,
                 // The keyboard lifts only this bar. The window itself does not resize,
                 // so the app list is not re-laid-out on every keyboard animation frame.
