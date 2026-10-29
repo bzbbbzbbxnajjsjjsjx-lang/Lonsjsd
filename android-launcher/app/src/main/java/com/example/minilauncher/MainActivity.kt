@@ -21,6 +21,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import android.provider.AlarmClock
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.verticalScroll
@@ -175,11 +177,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Immersive: the status bar stays hidden and only comes back on a swipe from the top.
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.statusBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE
-        }
+        // Immersive: the status bar returns only on a swipe from the top, then hides again.
+        WindowCompat.getInsetsController(window, window.decorView).systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE
+        hideStatusBar()
         settings = settingsStore.load()
         Haptics.enabled = settings.haptics
         setContent {
@@ -207,6 +208,15 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideStatusBar()
+    }
+
+    private fun hideStatusBar() {
+        WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.statusBars())
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -449,15 +459,17 @@ fun LauncherScreen(
                         text = now.format(DateTimeFormatter.ofPattern("HH:mm")),
                         style = MaterialTheme.typography.displayMedium,
                         color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable {
+                            try {
+                                context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+                            } catch (e: RuntimeException) {
+                                Toast.makeText(context, R.string.app_not_found, Toast.LENGTH_SHORT).show()
+                            }
+                        },
                     )
                     Text(
                         text = now.format(DateTimeFormatter.ofPattern("d MMMM EEEE", Locale.getDefault())),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.app_count, visibleApps.size),
-                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -529,30 +541,6 @@ fun LauncherScreen(
                 )
             }
 
-            if (query.isBlank() && searches.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.recent_searches),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    searches.forEach { past ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { query = past },
-                            label = { Text(past) },
-                        )
-                    }
-                }
-            }
-
             AnimatedVisibility(
                 visible = settings.showDock && dockApps.isNotEmpty(),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
@@ -576,6 +564,9 @@ fun LauncherScreen(
                     if (text.trim() == "/ayarlar") {
                         query = ""
                         settingsOpen = true
+                    } else if (text.trim() == "/gizli") {
+                        query = ""
+                        onSettingsChange(settings.copy(showHidden = !settings.showHidden))
                     } else {
                         match?.let { app ->
                             query = ""
