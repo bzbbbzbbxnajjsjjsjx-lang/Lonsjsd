@@ -125,6 +125,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlinx.coroutines.delay
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers
@@ -168,6 +175,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Immersive: the status bar stays hidden and only comes back on a swipe from the top.
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE
+        }
         settings = settingsStore.load()
         Haptics.enabled = settings.haptics
         setContent {
@@ -289,6 +301,14 @@ fun LauncherScreen(
     var hidden by remember { mutableStateOf(hiddenStore.load()) }
     var favorites by remember { mutableStateOf(favoritesStore.load()) }
     var recent by remember { mutableStateOf(usage.recentKeys(3)) }
+    // The clock refreshes every 15 seconds, so the minute is never more than 15 seconds late.
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalDateTime.now()
+            delay(15_000)
+        }
+    }
     val searchHistory = remember { SearchHistory(context) }
     var searches by remember { mutableStateOf(searchHistory.load()) }
     var loading by remember { mutableStateOf(true) }
@@ -415,7 +435,7 @@ fun LauncherScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .windowInsetsPadding(WindowInsets.statusBars),
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
         ) {
             // Title on the left, settings button in the top-right corner.
             Row(
@@ -425,6 +445,16 @@ fun LauncherScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = now.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        style = MaterialTheme.typography.displayMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = now.format(DateTimeFormatter.ofPattern("d MMMM EEEE", Locale.getDefault())),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Text(
                         text = stringResource(R.string.app_count, visibleApps.size),
                         style = MaterialTheme.typography.bodyLarge,
