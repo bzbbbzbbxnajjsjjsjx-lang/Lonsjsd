@@ -45,4 +45,5 @@
     <string name="setting_haptics">Dokunma titreşimi</string>
     <string name="setting_show_dock">Favori satırını göster</string>
     <string name="setting_compact">Sıkı liste</string>
+    <string name="reset_settings">Varsayılan ayarlara dön</string>
 </resources>

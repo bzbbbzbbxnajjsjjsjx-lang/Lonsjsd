@@ -630,70 +630,83 @@ private fun SettingsScreen(
                 icon = Icons.Filled.Home,
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
-                shape = segmentShape(0, 11),
+                shape = segmentShape(0, 12),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Done,
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
-                shape = segmentShape(1, 11),
+                shape = segmentShape(1, 12),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Star,
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
-                shape = segmentShape(2, 11),
+                shape = segmentShape(2, 12),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Lock,
                 label = stringResource(R.string.setting_show_hidden),
                 checked = settings.showHidden,
-                shape = segmentShape(3, 11),
+                shape = segmentShape(3, 12),
                 onCheckedChange = { onChange(settings.copy(showHidden = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Info,
                 label = stringResource(R.string.setting_haptics),
                 checked = settings.haptics,
-                shape = segmentShape(4, 11),
+                shape = segmentShape(4, 12),
                 onCheckedChange = { onChange(settings.copy(haptics = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Refresh,
                 label = stringResource(R.string.setting_compact),
                 checked = settings.compact,
-                shape = segmentShape(5, 11),
+                shape = segmentShape(5, 12),
                 onCheckedChange = { onChange(settings.copy(compact = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Refresh,
                 label = stringResource(R.string.setting_show_dock),
                 checked = settings.showDock,
-                shape = segmentShape(6, 11),
+                shape = segmentShape(6, 12),
                 onCheckedChange = { onChange(settings.copy(showDock = it)) },
             )
             ThemeModeCard(
                 mode = settings.themeMode,
-                shape = segmentShape(7, 11),
+                shape = segmentShape(7, 12),
                 onModeChange = { onChange(settings.copy(themeMode = it)) },
             )
             AccentCard(
                 accent = settings.accent,
-                shape = segmentShape(8, 11),
+                shape = segmentShape(8, 12),
                 onAccentChange = { onChange(settings.copy(accent = it)) },
             )
             BackupCard(
-                shape = segmentShape(9, 11),
+                shape = segmentShape(9, 12),
                 onBackup = onBackup,
                 onRestore = onRestore,
             )
             Surface(
+                onClick = { onChange(LauncherSettings()) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = segmentShape(10, 12),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = stringResource(R.string.reset_settings),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                )
+            }
+            Surface(
                 onClick = onClearUsage,
                 modifier = Modifier.fillMaxWidth(),
-                shape = segmentShape(10, 11),
+                shape = segmentShape(11, 12),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
