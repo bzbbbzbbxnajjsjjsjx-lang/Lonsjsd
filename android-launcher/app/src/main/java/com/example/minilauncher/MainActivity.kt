@@ -127,6 +127,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -215,8 +216,13 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) hideStatusBar()
     }
 
+    /** Hides the status bar only when it is actually showing; hiding it again would re-run the inset animation. */
     private fun hideStatusBar() {
-        WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.statusBars())
+        val visible = ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.statusBars()) == true
+        if (visible) {
+            WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.statusBars())
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -340,9 +346,12 @@ fun LauncherScreen(
     // Usage changes while another app is open, so re-read it on every resume.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            // Assign only when something changed, so returning home does not rebuild the list needlessly.
             if (event == Lifecycle.Event.ON_RESUME) {
-                usageCounts = usage.counts()
-                recent = usage.recentKeys(3)
+                val counts = usage.counts()
+                if (counts != usageCounts) usageCounts = counts
+                val latest = usage.recentKeys(3)
+                if (latest != recent) recent = latest
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
