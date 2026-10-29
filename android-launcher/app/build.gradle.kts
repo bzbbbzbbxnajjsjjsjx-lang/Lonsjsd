@@ -36,7 +36,9 @@ android {
             matchingFallbacks += listOf("release")
         }
         release {
+            // Strip unused code and resources from the release build: smaller APK and less memory mapped at runtime.
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
