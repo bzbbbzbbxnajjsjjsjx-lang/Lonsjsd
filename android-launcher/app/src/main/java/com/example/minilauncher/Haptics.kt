@@ -11,6 +11,10 @@ import android.os.Vibrator
  */
 object Haptics {
 
+    /** Set from the settings; when false no vibration plays. */
+    @Volatile
+    var enabled: Boolean = true
+
     /** A firm click, used when a switch changes. */
     fun tap(context: Context) = play(context, VibrationEffect.EFFECT_HEAVY_CLICK, 40)
 
@@ -18,6 +22,7 @@ object Haptics {
     fun confirm(context: Context) = play(context, VibrationEffect.EFFECT_DOUBLE_CLICK, 60)
 
     private fun play(context: Context, predefined: Int, fallbackMs: Long) {
+        if (!enabled) return
         val vibrator = context.getSystemService(Vibrator::class.java) ?: return
         if (!vibrator.hasVibrator()) return
         val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

@@ -10,6 +10,8 @@ data class LauncherSettings(
     val showHidden: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accent: AccentColor = AccentColor.DYNAMIC,
+    val haptics: Boolean = true,
+    val showDock: Boolean = true,
 )
 
 class SettingsStore(context: Context) {
@@ -32,6 +34,8 @@ class SettingsStore(context: Context) {
             showHidden = prefs.getBoolean(KEY_SHOW_HIDDEN, false),
             themeMode = enumOrDefault(prefs.getString(KEY_THEME_MODE, null), ThemeMode.SYSTEM),
             accent = enumOrDefault(prefs.getString(KEY_ACCENT, null), AccentColor.DYNAMIC),
+            haptics = prefs.getBoolean(KEY_HAPTICS, true),
+            showDock = prefs.getBoolean(KEY_SHOW_DOCK, true),
         )
     }
 
@@ -47,6 +51,8 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_SHOW_HIDDEN, settings.showHidden)
             .putString(KEY_THEME_MODE, settings.themeMode.name)
             .putString(KEY_ACCENT, settings.accent.name)
+            .putBoolean(KEY_HAPTICS, settings.haptics)
+            .putBoolean(KEY_SHOW_DOCK, settings.showDock)
             .apply()
     }
 
@@ -59,6 +65,8 @@ class SettingsStore(context: Context) {
         const val KEY_SHOW_HIDDEN = "show_hidden"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ACCENT = "accent"
+        const val KEY_HAPTICS = "haptics"
+        const val KEY_SHOW_DOCK = "show_dock"
     }
 }
 

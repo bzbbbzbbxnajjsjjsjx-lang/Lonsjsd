@@ -22,6 +22,8 @@ object BackupCodec {
             .put("showHidden", backup.settings.showHidden)
             .put("themeMode", backup.settings.themeMode.name)
             .put("accent", backup.settings.accent.name)
+            .put("haptics", backup.settings.haptics)
+            .put("showDock", backup.settings.showDock)
             .put("favorites", JSONArray(backup.favorites))
             .put("hidden", JSONArray(backup.hidden.toList()))
         val usage = JSONObject()
@@ -40,6 +42,8 @@ object BackupCodec {
             showHidden = root.getBoolean("showHidden"),
             themeMode = ThemeMode.entries.first { it.name == root.getString("themeMode") },
             accent = AccentColor.entries.first { it.name == root.getString("accent") },
+            haptics = root.optBoolean("haptics", true),
+            showDock = root.optBoolean("showDock", true),
         )
         val favorites = root.getJSONArray("favorites").let { array -> List(array.length()) { array.getString(it) } }
         val hidden = root.getJSONArray("hidden").let { array -> List(array.length()) { array.getString(it) } }.toSet()

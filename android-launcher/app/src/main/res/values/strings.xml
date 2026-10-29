@@ -42,4 +42,6 @@
     <string name="backup_import">Geri yükle</string>
     <string name="backup_done">Yedek kaydedildi</string>
     <string name="restore_failed">Yedek okunamadı</string>
+    <string name="setting_haptics">Dokunma titreşimi</string>
+    <string name="setting_show_dock">Favori satırını göster</string>
 </resources>

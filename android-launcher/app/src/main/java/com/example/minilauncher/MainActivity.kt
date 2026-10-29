@@ -45,6 +45,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
@@ -158,6 +161,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         settings = settingsStore.load()
+        Haptics.enabled = settings.haptics
         setContent {
             MiniLauncherTheme(themeMode = settings.themeMode, accent = settings.accent) {
                 LauncherScreen(
@@ -166,6 +170,7 @@ class MainActivity : ComponentActivity() {
                     settings = settings,
                     onSettingsChange = { updated ->
                         settings = updated
+                        Haptics.enabled = updated.haptics
                         settingsStore.save(updated)
                     },
                     hiddenStore = hiddenStore,
@@ -443,6 +448,7 @@ fun LauncherScreen(
                         shape = segmentShape(index, results.size),
                         onClick = { onLaunch(app.component) },
                         onLongClick = { menuApp = app },
+                        query = query,
                     )
                 }
             }
@@ -476,7 +482,7 @@ fun LauncherScreen(
             }
 
             AnimatedVisibility(
-                visible = dockApps.isNotEmpty(),
+                visible = settings.showDock && dockApps.isNotEmpty(),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
                     expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
@@ -513,91 +519,42 @@ fun LauncherScreen(
     }
 
     menuApp?.let { app ->
-        ModalBottomSheet(
-            onDismissRequest = { menuApp = null },
-            shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
-                Text(
-                    text = app.label,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                TextButton(
-                    onClick = {
-                        menuApp = null
-                        onAppInfo(app)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.app_info))
-                }
-                shortcuts.forEach { info ->
-                    TextButton(
-                        onClick = {
-                            menuApp = null
-                            onShortcut(info)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(info.shortLabel?.toString() ?: info.id)
-                    }
-                }
-                TextButton(
-                    onClick = {
-                        menuApp = null
-                        onToggleFavorite(app)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    val isFavorite = app.component.flattenToString() in favorites
-                    Text(stringResource(if (isFavorite) R.string.menu_unfavorite else R.string.menu_favorite))
-                }
-                if (app.component.flattenToString() in favorites) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        TextButton(
-                            onClick = {
-                                menuApp = null
-                                onMoveFavorite(app, -1)
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text(stringResource(R.string.menu_move_left))
-                        }
-                        TextButton(
-                            onClick = {
-                                menuApp = null
-                                onMoveFavorite(app, 1)
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text(stringResource(R.string.menu_move_right))
-                        }
-                    }
-                }
-                TextButton(
-                    onClick = {
-                        menuApp = null
-                        onToggleHidden(app)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    val isHidden = app.component.flattenToString() in hidden
-                    Text(stringResource(if (isHidden) R.string.menu_unhide else R.string.menu_hide))
-                }
-                TextButton(
-                    onClick = {
-                        menuApp = null
-                        onUninstall(app)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.uninstall), color = MaterialTheme.colorScheme.error)
-                }
+        val key = app.component.flattenToString()
+        val items = buildList {
+            add(ActionItem(Icons.Filled.Info, stringResource(R.string.app_info)) {
+                menuApp = null
+                onAppInfo(app)
+            })
+            shortcuts.forEach { info ->
+                add(ActionItem(Icons.Filled.Done, info.shortLabel?.toString() ?: info.id) {
+                    menuApp = null
+                    onShortcut(info)
+                })
             }
+            add(ActionItem(Icons.Filled.Star, stringResource(if (key in favorites) R.string.menu_unfavorite else R.string.menu_favorite)) {
+                menuApp = null
+                onToggleFavorite(app)
+            })
+            if (key in favorites) {
+                add(ActionItem(Icons.Filled.Refresh, stringResource(R.string.menu_move_left)) {
+                    menuApp = null
+                    onMoveFavorite(app, -1)
+                })
+                add(ActionItem(Icons.Filled.Refresh, stringResource(R.string.menu_move_right)) {
+                    menuApp = null
+                    onMoveFavorite(app, 1)
+                })
+            }
+            add(ActionItem(Icons.Filled.Lock, stringResource(if (key in hidden) R.string.menu_unhide else R.string.menu_hide)) {
+                menuApp = null
+                onToggleHidden(app)
+            })
+            add(ActionItem(Icons.Filled.Delete, stringResource(R.string.uninstall), destructive = true) {
+                menuApp = null
+                onUninstall(app)
+            })
         }
+        AppActionsSheet(app = app, items = items, onDismiss = { menuApp = null })
     }
 }
 
@@ -650,49 +607,63 @@ private fun SettingsScreen(
                 icon = Icons.Filled.Home,
                 label = stringResource(R.string.setting_auto_keyboard),
                 checked = settings.autoKeyboard,
-                shape = segmentShape(0, 8),
+                shape = segmentShape(0, 10),
                 onCheckedChange = { onChange(settings.copy(autoKeyboard = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Done,
                 label = stringResource(R.string.setting_auto_open),
                 checked = settings.autoOpen,
-                shape = segmentShape(1, 8),
+                shape = segmentShape(1, 10),
                 onCheckedChange = { onChange(settings.copy(autoOpen = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Star,
                 label = stringResource(R.string.setting_sort_usage),
                 checked = settings.sortByUsage,
-                shape = segmentShape(2, 8),
+                shape = segmentShape(2, 10),
                 onCheckedChange = { onChange(settings.copy(sortByUsage = it)) },
             )
             SettingRow(
                 icon = Icons.Filled.Lock,
                 label = stringResource(R.string.setting_show_hidden),
                 checked = settings.showHidden,
-                shape = segmentShape(3, 8),
+                shape = segmentShape(3, 10),
                 onCheckedChange = { onChange(settings.copy(showHidden = it)) },
+            )
+            SettingRow(
+                icon = Icons.Filled.Info,
+                label = stringResource(R.string.setting_haptics),
+                checked = settings.haptics,
+                shape = segmentShape(4, 10),
+                onCheckedChange = { onChange(settings.copy(haptics = it)) },
+            )
+            SettingRow(
+                icon = Icons.Filled.Refresh,
+                label = stringResource(R.string.setting_show_dock),
+                checked = settings.showDock,
+                shape = segmentShape(5, 10),
+                onCheckedChange = { onChange(settings.copy(showDock = it)) },
             )
             ThemeModeCard(
                 mode = settings.themeMode,
-                shape = segmentShape(4, 8),
+                shape = segmentShape(6, 10),
                 onModeChange = { onChange(settings.copy(themeMode = it)) },
             )
             AccentCard(
                 accent = settings.accent,
-                shape = segmentShape(5, 8),
+                shape = segmentShape(7, 10),
                 onAccentChange = { onChange(settings.copy(accent = it)) },
             )
             BackupCard(
-                shape = segmentShape(6, 8),
+                shape = segmentShape(8, 10),
                 onBackup = onBackup,
                 onRestore = onRestore,
             )
             Surface(
                 onClick = onClearUsage,
                 modifier = Modifier.fillMaxWidth(),
-                shape = segmentShape(7, 8),
+                shape = segmentShape(9, 10),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
@@ -705,7 +676,6 @@ private fun SettingsScreen(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingRow(
@@ -985,6 +955,7 @@ private fun AppTileRow(
 private fun AppRow(
     app: AppEntry,
     shape: Shape,
+    query: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -997,7 +968,7 @@ private fun AppRow(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Text(
-            text = app.label,
+            text = highlightMatch(app.label, query),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -1011,7 +982,7 @@ private fun AppRow(
  * Outer corners of the first and last row are fully rounded, inner corners are
  * tight, so a list of rows reads as one expressive grouped card.
  */
-private fun segmentShape(index: Int, count: Int): Shape {
+internal fun segmentShape(index: Int, count: Int): Shape {
     val outer = 28.dp
     val inner = 4.dp
     val top = if (index == 0) outer else inner
