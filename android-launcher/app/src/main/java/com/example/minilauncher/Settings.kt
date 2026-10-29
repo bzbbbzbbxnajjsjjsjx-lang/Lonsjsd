@@ -74,6 +74,25 @@ class SettingsStore(context: Context) {
     }
 }
 
+/** The last few searches that opened an app, newest first. */
+class SearchHistory(context: Context) {
+    private val prefs = context.getSharedPreferences("search", Context.MODE_PRIVATE)
+
+    fun load(): List<String> = prefs.getString(KEY, "").orEmpty().split('\n').filter { it.isNotBlank() }
+
+    fun add(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) return
+        val updated = (listOf(q) + load().filter { !it.equals(q, ignoreCase = true) }).take(MAX)
+        prefs.edit().putString(KEY, updated.joinToString("\n")).apply()
+    }
+
+    private companion object {
+        const val KEY = "queries"
+        const val MAX = 5
+    }
+}
+
 /** Apps the user hid from the list. Keys are ComponentName.flattenToString(). */
 class HiddenStore(context: Context) {
     private val prefs = context.getSharedPreferences("hidden", Context.MODE_PRIVATE)
