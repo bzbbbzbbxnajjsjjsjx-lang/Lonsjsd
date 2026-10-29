@@ -12,6 +12,7 @@ data class LauncherSettings(
     val accent: AccentColor = AccentColor.DYNAMIC,
     val haptics: Boolean = true,
     val showDock: Boolean = true,
+    val compact: Boolean = false,
 )
 
 class SettingsStore(context: Context) {
@@ -36,6 +37,7 @@ class SettingsStore(context: Context) {
             accent = enumOrDefault(prefs.getString(KEY_ACCENT, null), AccentColor.DYNAMIC),
             haptics = prefs.getBoolean(KEY_HAPTICS, true),
             showDock = prefs.getBoolean(KEY_SHOW_DOCK, true),
+            compact = prefs.getBoolean(KEY_COMPACT, false),
         )
     }
 
@@ -53,6 +55,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_ACCENT, settings.accent.name)
             .putBoolean(KEY_HAPTICS, settings.haptics)
             .putBoolean(KEY_SHOW_DOCK, settings.showDock)
+            .putBoolean(KEY_COMPACT, settings.compact)
             .apply()
     }
 
@@ -67,6 +70,7 @@ class SettingsStore(context: Context) {
         const val KEY_ACCENT = "accent"
         const val KEY_HAPTICS = "haptics"
         const val KEY_SHOW_DOCK = "show_dock"
+        const val KEY_COMPACT = "compact"
     }
 }
 

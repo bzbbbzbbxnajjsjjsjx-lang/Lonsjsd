@@ -24,6 +24,7 @@ object BackupCodec {
             .put("accent", backup.settings.accent.name)
             .put("haptics", backup.settings.haptics)
             .put("showDock", backup.settings.showDock)
+            .put("compact", backup.settings.compact)
             .put("favorites", JSONArray(backup.favorites))
             .put("hidden", JSONArray(backup.hidden.toList()))
         val usage = JSONObject()
@@ -44,6 +45,7 @@ object BackupCodec {
             accent = AccentColor.entries.first { it.name == root.getString("accent") },
             haptics = root.optBoolean("haptics", true),
             showDock = root.optBoolean("showDock", true),
+            compact = root.optBoolean("compact", false),
         )
         val favorites = root.getJSONArray("favorites").let { array -> List(array.length()) { array.getString(it) } }
         val hidden = root.getJSONArray("hidden").let { array -> List(array.length()) { array.getString(it) } }.toSet()
