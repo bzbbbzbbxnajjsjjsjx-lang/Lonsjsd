@@ -31,7 +31,10 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.toShape
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -117,6 +120,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -378,7 +382,18 @@ fun LauncherScreen(
     // The system back gesture closes settings instead of leaving the launcher.
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
 
-    if (settingsOpen) {
+    // Read the expressive specs here: the transition lambda is not a composable context.
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val slideSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    AnimatedContent(
+        targetState = settingsOpen,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            (fadeIn(fadeSpec) + slideInVertically(slideSpec) { it / 8 }).togetherWith(fadeOut(fadeSpec))
+        },
+        label = "settingsTransition",
+    ) { open ->
+    if (open) {
         SettingsScreen(
             settings = settings,
             onChange = onSettingsChange,
@@ -518,6 +533,7 @@ fun LauncherScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             )
         }
+    }
     }
 
     menuApp?.let { app ->
