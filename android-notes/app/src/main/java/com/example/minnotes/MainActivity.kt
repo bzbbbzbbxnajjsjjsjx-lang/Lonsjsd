@@ -147,8 +147,8 @@ fun NotesApp(store: NotesStore, prefs: NotesPrefs) {
     BackHandler(enabled = screen == Screen.Settings) { screen = Screen.Home }
 
     NotesTheme(theme) {
-        // Each direction gets its own motion: the editor grows in from the card, settings slides in
-        // from the right, and returning home reverses whichever motion brought you there.
+        // Transitions follow the M3E Canvas design: opening a note expands, settings slides left,
+        // leaving the editor slides down. All of them use the expressive spring.
         val spatialInt = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
         val spatialFloat = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
         val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -159,8 +159,10 @@ fun NotesApp(store: NotesStore, prefs: NotesPrefs) {
                 when {
                     targetState is Screen.Editor ->
                         (fadeIn(effects) + scaleIn(spatialFloat, initialScale = 0.85f)).togetherWith(fadeOut(effects))
-                    initialState is Screen.Editor ->
-                        fadeIn(effects).togetherWith(fadeOut(effects) + scaleOut(spatialFloat, targetScale = 0.85f))
+                    // Leaving the editor slides down, as the M3E Canvas design's save action specifies.
+                    initialState is Screen.Editor && targetState == Screen.Home ->
+                        (fadeIn(effects) + slideInVertically(spatialInt) { -it / 8 })
+                            .togetherWith(fadeOut(effects) + slideOutVertically(spatialInt) { it / 6 })
                     targetState == Screen.Settings ->
                         (slideInHorizontally(spatialInt) { it } + fadeIn(effects))
                             .togetherWith(slideOutHorizontally(spatialInt) { -it / 3 } + fadeOut(effects))
