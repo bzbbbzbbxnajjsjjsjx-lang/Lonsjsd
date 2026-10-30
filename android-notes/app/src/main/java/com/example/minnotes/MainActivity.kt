@@ -8,6 +8,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -131,12 +138,27 @@ fun NotesApp(store: NotesStore, prefs: NotesPrefs) {
     BackHandler(enabled = screen == Screen.Settings) { screen = Screen.Home }
 
     NotesTheme(theme) {
+        // Each direction gets its own motion: the editor grows in from the card, settings slides in
+        // from the right, and returning home reverses whichever motion brought you there.
+        val spatialInt = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+        val spatialFloat = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+        val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         AnimatedContent(
             targetState = screen,
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
-                (fadeIn(spring()) + slideInVertically(spring()) { it / 10 })
-                    .togetherWith(fadeOut(spring()) + slideOutVertically(spring()) { -it / 20 })
+                when {
+                    targetState is Screen.Editor ->
+                        (fadeIn(effects) + scaleIn(spatialFloat, initialScale = 0.85f)).togetherWith(fadeOut(effects))
+                    initialState is Screen.Editor ->
+                        fadeIn(effects).togetherWith(fadeOut(effects) + scaleOut(spatialFloat, targetScale = 0.85f))
+                    targetState == Screen.Settings ->
+                        (slideInHorizontally(spatialInt) { it } + fadeIn(effects))
+                            .togetherWith(slideOutHorizontally(spatialInt) { -it / 3 } + fadeOut(effects))
+                    else ->
+                        (slideInHorizontally(spatialInt) { -it / 3 } + fadeIn(effects))
+                            .togetherWith(slideOutHorizontally(spatialInt) { it } + fadeOut(effects))
+                }
             },
             label = "screen",
         ) { current ->
@@ -388,6 +410,16 @@ private fun EditorScreen(
                 colors = transparentFieldColors(),
             )
             Spacer(Modifier.height(88.dp))
+        }
+
+        FloatingActionButton(
+            onClick = { onBack(title, body) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(androidx.compose.foundation.layout.WindowInsetsSides.Bottom))
+                .padding(20.dp),
+        ) {
+            Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
         }
 
         HorizontalFloatingToolbar(
