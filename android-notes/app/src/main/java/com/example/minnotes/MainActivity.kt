@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -77,6 +76,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -110,9 +111,11 @@ fun NotesApp(store: NotesStore, prefs: NotesPrefs) {
     var sort by remember { mutableStateOf(prefs.sort()) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
+    // Writes happen off the main thread so editing never waits on the disk.
+    val scope = rememberCoroutineScope()
     fun save(updated: List<Note>) {
         notes = updated
-        store.save(updated)
+        scope.launch(Dispatchers.IO) { store.save(updated) }
     }
 
     // Commits the open note. A note left empty is discarded rather than kept.
