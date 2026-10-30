@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,13 +17,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -40,7 +41,6 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.toShape
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,9 +60,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlin.math.abs
 import kotlin.math.min
 import kotlinx.coroutines.delay
 
@@ -102,10 +101,9 @@ fun TetrisScreen() {
     var game by remember { mutableStateOf(newGame()) }
     var paused by remember { mutableStateOf(false) }
     val score by animateIntAsState(game.score, animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), label = "score")
-    val density = LocalDensity.current
-    val dragStep = with(density) { 24.dp.toPx() }
+    val dragStep = with(LocalDensity.current) { 24.dp.toPx() }
 
-    // Each action is applied only while the game is running.
+    // Actions only apply while the game runs: not paused and not over.
     fun update(action: (GameState) -> GameState) {
         if (!paused && !game.over) game = action(game)
     }
@@ -123,56 +121,84 @@ fun TetrisScreen() {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Header(score = score, lines = game.lines, next = game.next)
 
+        // The board is a fixed-proportion card that fills the height left over, centred.
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            Board(
-                game = game,
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = { update { it.rotate() } })
-                    }
-                    .pointerInput(Unit) {
-                        var dx = 0f
-                        var dy = 0f
-                        detectDragGestures(
-                            onDragStart = {
-                                dx = 0f
-                                dy = 0f
-                            },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                dx += amount.x
-                                dy += amount.y
-                                if (dx > dragStep) {
+                    .fillMaxHeight()
+                    .aspectRatio(COLS / ROWS.toFloat()),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Board(
+                    game = game,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { update { it.rotate() } })
+                        }
+                        .pointerInput(Unit) {
+                            var dx = 0f
+                            var dy = 0f
+                            detectDragGestures(
+                                onDragStart = {
                                     dx = 0f
-                                    update { it.move(1) }
-                                } else if (dx < -dragStep) {
-                                    dx = 0f
-                                    update { it.move(-1) }
-                                }
-                                if (dy > dragStep * 2) {
                                     dy = 0f
-                                    update { it.hardDrop() }
-                                }
-                            },
-                        )
-                    },
-            )
+                                },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    dx += amount.x
+                                    dy += amount.y
+                                    if (dx > dragStep) {
+                                        dx = 0f
+                                        update { it.move(1) }
+                                    } else if (dx < -dragStep) {
+                                        dx = 0f
+                                        update { it.move(-1) }
+                                    }
+                                    if (dy > dragStep * 2) {
+                                        dy = 0f
+                                        update { it.hardDrop() }
+                                    }
+                                },
+                            )
+                        },
+                )
+            }
+
             if (game.over) {
-                GameOver(score = game.score, onNewGame = {
-                    game = newGame()
-                    paused = false
-                })
+                Overlay(title = stringResource(R.string.game_over)) {
+                    Text(
+                        text = game.score.toString(),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = {
+                        game = newGame()
+                        paused = false
+                    }) {
+                        Text(stringResource(R.string.new_game))
+                    }
+                }
+            } else if (paused) {
+                Overlay(title = stringResource(R.string.paused_title)) {
+                    FilledTonalButton(onClick = { paused = false }) {
+                        Text(stringResource(R.string.resume))
+                    }
+                }
             }
         }
 
@@ -193,42 +219,48 @@ fun TetrisScreen() {
 private fun Header(score: Int, lines: Int, next: Shape) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
-            Text(
-                text = stringResource(R.string.score),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = score.toString(),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "${stringResource(R.string.lines)}: $lines",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Surface(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+                Text(
+                    text = stringResource(R.string.score),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = score.toString(),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "${stringResource(R.string.lines)}: $lines",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         // The next piece sits on a cookie-shaped badge.
         Box(
             modifier = Modifier
-                .size(96.dp)
+                .size(88.dp)
                 .clip(MaterialShapes.Cookie9Sided.toShape())
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            PiecePreview(next, cell = 12.dp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            PiecePreview(next, cell = 11.dp, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
 }
 
 @Composable
-private fun PiecePreview(shape: Shape, cell: androidx.compose.ui.unit.Dp, color: Color) {
+private fun PiecePreview(shape: Shape, cell: Dp, color: Color) {
     val cells = shape.cells
     val rows = cells.maxOf { it.first } + 1
     val cols = cells.maxOf { it.second } + 1
@@ -256,21 +288,26 @@ private fun Board(game: GameState, modifier: Modifier) {
         MaterialTheme.colorScheme.primaryContainer,
         MaterialTheme.colorScheme.tertiaryContainer,
     )
-    val track = MaterialTheme.colorScheme.surfaceContainerHigh
-    Canvas(modifier = modifier.aspectRatio(COLS / ROWS.toFloat())) {
+    val grid = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(modifier = modifier) {
         val cell = min(size.width / COLS, size.height / ROWS)
         val originX = (size.width - cell * COLS) / 2
         val originY = (size.height - cell * ROWS) / 2
         val gap = cell * 0.08f
-        val radius = CornerRadius(cell * 0.22f)
+        val radius = CornerRadius(cell * 0.24f)
         val block = Size(cell - gap * 2, cell - gap * 2)
 
-        drawRoundRect(
-            color = track,
-            topLeft = Offset(originX, originY),
-            size = Size(cell * COLS, cell * ROWS),
-            cornerRadius = CornerRadius(cell * 0.4f),
-        )
+        // Faint grid so the empty cells read as a board.
+        for (r in 0 until ROWS) {
+            for (c in 0 until COLS) {
+                drawRoundRect(
+                    color = grid.copy(alpha = 0.35f),
+                    topLeft = Offset(originX + c * cell + gap, originY + r * cell + gap),
+                    size = block,
+                    cornerRadius = radius,
+                )
+            }
+        }
         for (r in 0 until ROWS) {
             for (c in 0 until COLS) {
                 val v = game.board[r][c]
@@ -309,22 +346,22 @@ private fun Controls(
     onDrop: () -> Unit,
     onTogglePause: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(24.dp)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            FilledTonalButton(onClick = onLeft, enabled = enabled, shape = shape, modifier = Modifier.weight(1f)) {
-                Text("←", fontSize = 22.sp)
+            FilledTonalButton(onClick = onLeft, enabled = enabled, shape = shape, modifier = Modifier.weight(1f).height(56.dp)) {
+                Text("←", style = MaterialTheme.typography.titleLarge)
             }
-            FilledTonalButton(onClick = onRight, enabled = enabled, shape = shape, modifier = Modifier.weight(1f)) {
-                Text("→", fontSize = 22.sp)
+            FilledTonalButton(onClick = onRight, enabled = enabled, shape = shape, modifier = Modifier.weight(1f).height(56.dp)) {
+                Text("→", style = MaterialTheme.typography.titleLarge)
             }
-            Button(onClick = onRotate, enabled = enabled, shape = shape, modifier = Modifier.weight(1f)) {
+            Button(onClick = onRotate, enabled = enabled, shape = shape, modifier = Modifier.weight(1f).height(56.dp)) {
                 Text(stringResource(R.string.rotate))
             }
-            Button(onClick = onDrop, enabled = enabled, shape = shape, modifier = Modifier.weight(1f)) {
+            Button(onClick = onDrop, enabled = enabled, shape = shape, modifier = Modifier.weight(1f).height(56.dp)) {
                 Text(stringResource(R.string.drop))
             }
         }
@@ -332,40 +369,41 @@ private fun Controls(
             onClick = onTogglePause,
             enabled = enabled,
             shape = shape,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
         ) {
             Text(stringResource(if (paused) R.string.resume else R.string.pause))
         }
     }
 }
 
+/** A centred, expressive card laid over the board for pause and game over. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun GameOver(score: Int, onNewGame: () -> Unit) {
-    Surface(
-        modifier = Modifier.padding(24.dp),
-        shape = MaterialShapes.Cookie9Sided.toShape(),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+private fun Overlay(title: String, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
+        contentAlignment = Alignment.Center,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 32.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Surface(
+            shape = MaterialShapes.Cookie9Sided.toShape(),
+            color = MaterialTheme.colorScheme.tertiaryContainer,
         ) {
-            Text(
-                text = stringResource(R.string.game_over),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = score.toString(),
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-            )
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = onNewGame, shape = RoundedCornerShape(24.dp)) {
-                Text(stringResource(R.string.new_game))
+            Column(
+                modifier = Modifier.padding(horizontal = 36.dp, vertical = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(12.dp))
+                content()
             }
         }
     }

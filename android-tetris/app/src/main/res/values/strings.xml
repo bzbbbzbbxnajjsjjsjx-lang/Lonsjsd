@@ -10,4 +10,5 @@
     <string name="new_game">Yeni oyun</string>
     <string name="rotate">Döndür</string>
     <string name="drop">Bırak</string>
+    <string name="paused_title">Duraklatıldı</string>
 </resources>
