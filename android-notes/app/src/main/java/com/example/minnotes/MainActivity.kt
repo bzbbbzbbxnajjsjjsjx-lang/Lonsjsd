@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -228,6 +230,9 @@ private fun HomeScreen(
     onSettings: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    // The extended FAB shrinks to an icon once the list scrolls, as in the M3E Canvas design.
+    val fabExpanded by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
     val shown = remember(notes, query, sort) { notes.visible(query, sort) }
     val pinnedCount = notes.count { it.pinned }
 
@@ -301,6 +306,7 @@ private fun HomeScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -322,6 +328,7 @@ private fun HomeScreen(
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(androidx.compose.foundation.layout.WindowInsetsSides.Bottom))
                 .padding(20.dp),
+            expanded = fabExpanded,
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
             text = { Text(stringResource(R.string.new_note)) },
         )
