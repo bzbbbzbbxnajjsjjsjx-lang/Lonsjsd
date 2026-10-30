@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Launcher</string>
+    <string name="search_placeholder">Uygulama ara</string>
+    <string name="menu_description">Menü</string>
+    <string name="more_description">Daha fazla seçenek</string>
+    <string name="clear_description">Temizle</string>
+    <string name="refresh_apps">Uygulamaları yenile</string>
+    <string name="system_settings">Sistem ayarları</string>
+    <string name="no_apps">Yüklü uygulama bulunamadı</string>
+    <string name="no_match">Eşleşen uygulama yok</string>
+    <string name="launch_failed">Uygulama açılamadı</string>
+</resources>
