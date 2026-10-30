@@ -28,4 +28,14 @@
     <string name="delete_confirm">Tüm notlar silinsin mi? Bu geri alınamaz.</string>
     <string name="cancel">Vazgeç</string>
     <string name="confirm">Sil</string>
+    <string name="feature_pin">Notları sabitle, en önemlileri üstte kalsın</string>
+    <string name="feature_search">Başlığında ya da gövdesinde hızlıca ara</string>
+    <string name="feature_colors">Duvar kağıdınla uyumlu dinamik renkler</string>
+    <string name="feature_share">Notlarını tek dokunuşla paylaş</string>
+    <string name="start">Başla</string>
+    <string name="share">Paylaş</string>
+    <string name="pref_dynamic">Renkler</string>
+    <string name="pref_dynamic_hint">Duvar kağıdından renk al</string>
+    <string name="pref_pin_top_hint">Sabitli notlar her zaman üstte</string>
+    <string name="pref_reset">Varsayılana dön</string>
 </resources>

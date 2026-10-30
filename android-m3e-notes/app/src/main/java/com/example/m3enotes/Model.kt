@@ -77,9 +77,29 @@ class Preferences(context: Context) {
 
     fun setPinnedOnTop(value: Boolean) = prefs.edit().putBoolean(KEY_PIN_TOP, value).apply()
 
+    /** Wallpaper colours on Android 12 and newer. Falls back to the teal palette when off. */
+    fun dynamicColor(): Boolean = prefs.getBoolean(KEY_DYNAMIC, true)
+
+    fun setDynamicColor(value: Boolean) = prefs.edit().putBoolean(KEY_DYNAMIC, value).apply()
+
+    /** False until the welcome screen has been dismissed once. */
+    fun welcomed(): Boolean = prefs.getBoolean(KEY_WELCOMED, false)
+
+    fun setWelcomed() = prefs.edit().putBoolean(KEY_WELCOMED, true).apply()
+
+    /** Restores the defaults of every setting, without touching the notes. */
+    fun resetToDefaults() = prefs.edit()
+        .putString(KEY_THEME, ThemeChoice.SYSTEM.name)
+        .putString(KEY_SORT, SortOrder.UPDATED.name)
+        .putBoolean(KEY_PIN_TOP, true)
+        .putBoolean(KEY_DYNAMIC, true)
+        .apply()
+
     private companion object {
         const val KEY_THEME = "theme"
         const val KEY_SORT = "sort"
         const val KEY_PIN_TOP = "pin_top"
+        const val KEY_DYNAMIC = "dynamic"
+        const val KEY_WELCOMED = "welcomed"
     }
 }

@@ -15,6 +15,13 @@
   },
   "frames": [
     {
+      "id": "welcome",
+      "name": "Hoş geldin",
+      "x": -492,
+      "y": 0,
+      "note": "İlk açılışta bir kez gösterilir. Başla ile listeye geçilir."
+    },
+    {
       "id": "list",
       "name": "Liste",
       "x": 0,
@@ -37,6 +44,98 @@
     }
   ],
   "groups": [
+    {
+      "id": "w-art",
+      "x": -396,
+      "y": 180,
+      "axis": "x",
+      "items": [
+        {
+          "id": "w-box",
+          "kind": "box",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "size": 220,
+          "size2": 220,
+          "fill": "primaryContainer",
+          "note": "Büyük cookie şekli."
+        }
+      ]
+    },
+    {
+      "id": "w-text",
+      "x": -476,
+      "y": 440,
+      "axis": "x",
+      "items": [
+        {
+          "id": "w-title",
+          "kind": "text",
+          "label": "Notlar",
+          "icon": null,
+          "variant": "filled",
+          "size": 36,
+          "bold": true
+        }
+      ]
+    },
+    {
+      "id": "w-load",
+      "x": -476,
+      "y": 500,
+      "axis": "x",
+      "items": [
+        {
+          "id": "w-ind",
+          "kind": "loadingIndicator",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "contained": false
+        }
+      ]
+    },
+    {
+      "id": "w-feat",
+      "x": -476,
+      "y": 560,
+      "axis": "y",
+      "items": [
+        {
+          "id": "w-f1",
+          "kind": "listItem",
+          "label": "Notları sabitle",
+          "supporting": "En önemliler üstte kalsın",
+          "icon": "star",
+          "variant": "filled"
+        },
+        {
+          "id": "w-f2",
+          "kind": "listItem",
+          "label": "Hızlıca ara",
+          "supporting": "Başlık ve gövdede",
+          "icon": "search",
+          "variant": "filled"
+        },
+        {
+          "id": "w-f3",
+          "kind": "listItem",
+          "label": "Dinamik renkler",
+          "supporting": "Duvar kağıdından",
+          "icon": "refresh",
+          "variant": "filled"
+        },
+        {
+          "id": "w-f4",
+          "kind": "listItem",
+          "label": "Paylaş",
+          "supporting": "Tek dokunuşla",
+          "icon": "share",
+          "variant": "filled"
+        }
+      ]
+    },
     {
       "id": "l-top",
       "x": 0,
@@ -207,10 +306,15 @@
               "label": "Sabitle"
             },
             {
+              "icon": "share",
+              "label": "Paylaş"
+            },
+            {
               "icon": "delete",
               "label": "Sil"
             }
-          ]
+          ],
+          "note": "Sabitle notu üste taşır. Paylaş başlığı ve gövdeyi paylaşır. Sil notu siler."
         }
       ]
     },
@@ -334,6 +438,58 @@
           "variant": "tonal",
           "size": 380,
           "note": "Onay ister, sonra tüm notları siler."
+        }
+      ]
+    },
+    {
+      "id": "w-start",
+      "x": -256,
+      "y": 780,
+      "axis": "x",
+      "items": [
+        {
+          "id": "w-go",
+          "kind": "extendedFab",
+          "label": "Başla",
+          "icon": "done",
+          "variant": "filled",
+          "action": {
+            "to": "list",
+            "transition": "expand"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p-reset",
+      "x": 836,
+      "y": 780,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-fab",
+          "kind": "fab",
+          "label": "",
+          "icon": "refresh",
+          "variant": "filled",
+          "note": "Tüm ayarları varsayılana döndürür. Notlara dokunmaz."
+        }
+      ]
+    },
+    {
+      "id": "p-dyn",
+      "x": 1000,
+      "y": 348,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-renk",
+          "kind": "switch",
+          "label": "Duvar kağıdı renkleri",
+          "icon": null,
+          "variant": "filled",
+          "checked": true,
+          "size": 380
         }
       ]
     }
