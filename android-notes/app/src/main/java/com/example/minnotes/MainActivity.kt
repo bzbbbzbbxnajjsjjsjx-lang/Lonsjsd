@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -83,6 +84,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.platform.LocalLayoutDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -279,7 +286,13 @@ private fun HomeScreen(
             Spacer(Modifier.height(12.dp))
 
             if (shown.isEmpty()) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    if (query.isBlank()) EmptyIllustration()
+                    Spacer(Modifier.height(16.dp))
                     Text(
                         text = stringResource(if (query.isBlank()) R.string.no_notes else R.string.no_results),
                         style = MaterialTheme.typography.bodyLarge,
@@ -323,7 +336,10 @@ private fun NoteCard(note: Note, shape: Shape, onClick: () -> Unit) {
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            LetterBadge(letter = note.title.firstOrNull()?.uppercaseChar() ?: '•', index = note.id)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = note.title.ifBlank { stringResource(R.string.untitled) },
@@ -358,6 +374,53 @@ private fun NoteCard(note: Note, shape: Shape, onClick: () -> Unit) {
                 text = formatDate(note.updated),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            }
+        }
+    }
+}
+
+/** A Material 3 Expressive shape drawn on a Canvas, with a letter on top. Colour follows the note. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LetterBadge(letter: Char, index: Long) {
+    val scheme = MaterialTheme.colorScheme
+    val palette = listOf(scheme.primaryContainer, scheme.secondaryContainer, scheme.tertiaryContainer)
+    val color = palette[(index % palette.size).toInt().let { if (it < 0) it + palette.size else it }]
+    val shape = MaterialShapes.Cookie9Sided.toShape()
+    val layoutDirection = LocalLayoutDirection.current
+    Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawOutline(outline = shape.createOutline(size, layoutDirection, this), color = color)
+        }
+        Text(
+            text = letter.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = scheme.onPrimaryContainer,
+        )
+    }
+}
+
+/** Empty-state art: a large expressive shape with three drawn "text lines" inside it. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EmptyIllustration() {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialShapes.Cookie12Sided.toShape()
+    val layoutDirection = LocalLayoutDirection.current
+    Canvas(modifier = Modifier.size(140.dp)) {
+        drawOutline(outline = shape.createOutline(size, layoutDirection, this), color = scheme.primaryContainer)
+        val lineHeight = size.height * 0.06f
+        val left = size.width * 0.3f
+        val widths = listOf(0.4f, 0.32f, 0.24f)
+        widths.forEachIndexed { i, w ->
+            val top = size.height * (0.38f + i * 0.14f)
+            drawRoundRect(
+                color = scheme.onPrimaryContainer,
+                topLeft = Offset(left, top),
+                size = Size(size.width * w, lineHeight),
+                cornerRadius = CornerRadius(lineHeight / 2),
             )
         }
     }
