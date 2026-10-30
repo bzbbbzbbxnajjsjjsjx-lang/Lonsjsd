@@ -1,0 +1,341 @@
+{
+  "title": "Notlar",
+  "brief": "Notları listele, ara, düzenle, sabitle. Ayarlarda tema ve sıralama.",
+  "frame": "phone",
+  "platform": "android",
+  "paletteKey": "teal",
+  "theme": {
+    "dark": false,
+    "bothModes": true,
+    "contrast": "standard",
+    "shape": "rounded",
+    "font": "roboto",
+    "emphasized": false,
+    "motion": "expressive"
+  },
+  "frames": [
+    {
+      "id": "list",
+      "name": "Liste",
+      "x": 0,
+      "y": 0,
+      "note": "Sabitli notlar üstte. Kaydırınca yeni not düğmesi küçülür."
+    },
+    {
+      "id": "note",
+      "name": "Not",
+      "x": 492,
+      "y": 0,
+      "note": "Başlık ve gövde. Kaydet ya da geri ile listeye dönülür, boş not silinir."
+    },
+    {
+      "id": "prefs",
+      "name": "Ayarlar",
+      "x": 984,
+      "y": 0,
+      "note": "Tema, sıralama, sabitlileri üstte tutma ve tüm notları silme."
+    }
+  ],
+  "groups": [
+    {
+      "id": "l-top",
+      "x": 0,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "l-bar",
+          "kind": "topAppBar",
+          "label": "Notlar",
+          "icon": null,
+          "icon2": "tune",
+          "variant": "filled",
+          "actions": {
+            "icon2": {
+              "to": "prefs",
+              "transition": "slideLeft"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "l-search",
+      "x": 16,
+      "y": 100,
+      "axis": "x",
+      "items": [
+        {
+          "id": "l-q",
+          "kind": "searchBar",
+          "label": "Ara",
+          "icon": "search",
+          "variant": "filled"
+        }
+      ]
+    },
+    {
+      "id": "l-rows",
+      "x": 16,
+      "y": 172,
+      "axis": "y",
+      "items": [
+        {
+          "id": "r1",
+          "kind": "listItem",
+          "label": "Toplantı",
+          "supporting": "Bütçe planı",
+          "icon": "push_pin",
+          "variant": "filled",
+          "action": {
+            "to": "note",
+            "transition": "expand"
+          }
+        },
+        {
+          "id": "r2",
+          "kind": "listItem",
+          "label": "Alışveriş",
+          "supporting": "süt, ekmek",
+          "icon": "note",
+          "variant": "filled",
+          "action": {
+            "to": "note",
+            "transition": "expand"
+          }
+        },
+        {
+          "id": "r3",
+          "kind": "listItem",
+          "label": "Fikirler",
+          "supporting": "Uygulama taslağı",
+          "icon": "note",
+          "variant": "filled",
+          "action": {
+            "to": "note",
+            "transition": "expand"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l-fab",
+      "x": 236,
+      "y": 780,
+      "axis": "x",
+      "items": [
+        {
+          "id": "l-new",
+          "kind": "extendedFab",
+          "label": "Yeni not",
+          "icon": "add",
+          "variant": "filled",
+          "collapseOnScroll": true,
+          "action": {
+            "to": "note",
+            "transition": "expand"
+          }
+        }
+      ]
+    },
+    {
+      "id": "n-top",
+      "x": 492,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "n-bar",
+          "kind": "topAppBar",
+          "label": "Not",
+          "icon": "arrow_back",
+          "icon2": "delete",
+          "variant": "filled",
+          "action": {
+            "to": "back",
+            "transition": "fade"
+          }
+        }
+      ]
+    },
+    {
+      "id": "n-title",
+      "x": 508,
+      "y": 100,
+      "axis": "x",
+      "items": [
+        {
+          "id": "n-t",
+          "kind": "textField",
+          "label": "Başlık",
+          "icon": null,
+          "variant": "outlined"
+        }
+      ]
+    },
+    {
+      "id": "n-body",
+      "x": 508,
+      "y": 172,
+      "axis": "x",
+      "items": [
+        {
+          "id": "n-b",
+          "kind": "textField",
+          "label": "Notunuzu yazın",
+          "icon": null,
+          "variant": "outlined",
+          "size": 380
+        }
+      ]
+    },
+    {
+      "id": "n-tools",
+      "x": 560,
+      "y": 780,
+      "axis": "x",
+      "items": [
+        {
+          "id": "n-toolbar",
+          "kind": "toolbar",
+          "label": "",
+          "icon": null,
+          "variant": "tonal",
+          "tabs": [
+            {
+              "icon": "push_pin",
+              "label": "Sabitle"
+            },
+            {
+              "icon": "delete",
+              "label": "Sil"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n-save",
+      "x": 836,
+      "y": 780,
+      "axis": "x",
+      "items": [
+        {
+          "id": "n-fab",
+          "kind": "fab",
+          "label": "",
+          "icon": "check",
+          "variant": "filled",
+          "action": {
+            "to": "list",
+            "transition": "slideDown"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p-top",
+      "x": 984,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-bar",
+          "kind": "topAppBar",
+          "label": "Ayarlar",
+          "icon": "arrow_back",
+          "variant": "filled",
+          "action": {
+            "to": "list",
+            "transition": "slideLeft"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p-theme",
+      "x": 1000,
+      "y": 100,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-tema",
+          "kind": "select",
+          "label": "Tema",
+          "variant": "outlined",
+          "tabs": [
+            {
+              "label": "Sistem"
+            },
+            {
+              "label": "Açık"
+            },
+            {
+              "label": "Koyu"
+            }
+          ],
+          "selected": 0,
+          "icon": null
+        }
+      ]
+    },
+    {
+      "id": "p-sort",
+      "x": 1000,
+      "y": 172,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-sirala",
+          "kind": "select",
+          "label": "Sıralama",
+          "variant": "outlined",
+          "tabs": [
+            {
+              "label": "Son düzenleme"
+            },
+            {
+              "label": "Başlık"
+            }
+          ],
+          "selected": 0,
+          "icon": null
+        }
+      ]
+    },
+    {
+      "id": "p-pin",
+      "x": 1000,
+      "y": 244,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-sabit",
+          "kind": "switch",
+          "label": "Sabitlileri üstte tut",
+          "checked": true,
+          "size": 380,
+          "icon": null,
+          "variant": "filled"
+        }
+      ]
+    },
+    {
+      "id": "p-delete",
+      "x": 1000,
+      "y": 296,
+      "axis": "x",
+      "items": [
+        {
+          "id": "p-sil",
+          "kind": "button",
+          "label": "Tüm notları sil",
+          "icon": "delete",
+          "variant": "tonal",
+          "size": 380,
+          "note": "Onay ister, sonra tüm notları siler."
+        }
+      ]
+    }
+  ]
+}

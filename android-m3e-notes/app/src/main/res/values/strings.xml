@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notlar</string>
+    <string name="list_title">Notlar</string>
+    <string name="search_hint">Ara</string>
+    <string name="new_note">Yeni not</string>
+    <string name="untitled">Başlıksız</string>
+    <string name="no_notes">Henüz not yok</string>
+    <string name="no_results">Eşleşen not yok</string>
+    <string name="note_title">Not</string>
+    <string name="title_hint">Başlık</string>
+    <string name="body_hint">Notunuzu yazın</string>
+    <string name="pin">Sabitle</string>
+    <string name="unpin">Sabitliği kaldır</string>
+    <string name="delete">Sil</string>
+    <string name="save">Kaydet</string>
+    <string name="back">Geri</string>
+    <string name="prefs_title">Ayarlar</string>
+    <string name="pref_theme">Tema</string>
+    <string name="pref_sort">Sıralama</string>
+    <string name="pref_pin_top">Sabitlileri üstte tut</string>
+    <string name="pref_delete_all">Tüm notları sil</string>
+    <string name="theme_system">Sistem</string>
+    <string name="theme_light">Açık</string>
+    <string name="theme_dark">Koyu</string>
+    <string name="sort_updated">Son düzenleme</string>
+    <string name="sort_title">Başlık</string>
+    <string name="delete_confirm">Tüm notlar silinsin mi? Bu geri alınamaz.</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="confirm">Sil</string>
+</resources>
