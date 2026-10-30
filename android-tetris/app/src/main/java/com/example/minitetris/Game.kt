@@ -39,8 +39,8 @@ data class GameState(
 ) {
     val level: Int get() = lines / 10 + 1
 
-    /** Milliseconds between automatic drops; faster as the level rises. */
-    fun gravityMs(): Long = maxOf(120L, 800L - (level - 1) * 70L)
+    /** Milliseconds between automatic drops: a relaxed start, speeding up slowly with each level. */
+    fun gravityMs(): Long = maxOf(300L, 1000L - (level - 1) * 60L)
 
     fun move(dx: Int): GameState {
         val p = piece ?: return this

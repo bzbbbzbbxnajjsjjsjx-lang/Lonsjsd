@@ -61,7 +61,8 @@ class GameLogicTest {
     @Test
     fun gravityGetsFasterWithLevel() {
         assertTrue(GameState(lines = 0).gravityMs() > GameState(lines = 30).gravityMs())
-        assertEquals(120L, GameState(lines = 1000).gravityMs())
+        assertEquals(300L, GameState(lines = 1000).gravityMs())
+        assertEquals(1000L, GameState(lines = 0).gravityMs())
     }
 
     @Test

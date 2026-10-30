@@ -102,17 +102,24 @@ fun TetrisScreen() {
     var paused by remember { mutableStateOf(false) }
     val score by animateIntAsState(game.score, animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), label = "score")
     val dragStep = with(LocalDensity.current) { 24.dp.toPx() }
+    val context = LocalContext.current
 
-    // Actions only apply while the game runs: not paused and not over.
+    // Actions only apply while the game runs: not paused and not over. Each change gets its haptic.
     fun update(action: (GameState) -> GameState) {
-        if (!paused && !game.over) game = action(game)
+        if (!paused && !game.over) {
+            val before = game
+            game = action(before)
+            Haptics.forChange(context, before, game)
+        }
     }
 
     // Gravity: one step per interval, stopped while paused or after game over.
     LaunchedEffect(paused, game.over) {
         while (!paused && !game.over) {
             delay(game.gravityMs())
+            val before = game
             game = game.step()
+            Haptics.forChange(context, before, game)
         }
     }
 
