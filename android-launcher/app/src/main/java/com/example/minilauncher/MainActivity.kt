@@ -586,7 +586,7 @@ fun LauncherScreen(
                     }
                 },
                 onSearch = {
-                    results.firstOrNull()?.let {
+                    visibleApps.enterMatch(query, if (settings.sortByUsage) usageCounts else emptyMap())?.let {
                         searchHistory.add(query)
                         searches = searchHistory.load()
                         onLaunch(it.component)

@@ -51,6 +51,16 @@ fun List<AppEntry>.search(query: String, usage: Map<String, Int>): List<AppEntry
 }
 
 /**
+ * The app the keyboard's search key opens. Only the top result is considered, and only when its
+ * name starts with the typed text, so unrelated text never opens a random app.
+ */
+fun List<AppEntry>.enterMatch(query: String, usage: Map<String, Int>): AppEntry? {
+    val q = query.trim()
+    if (q.isEmpty()) return null
+    return search(q, usage).firstOrNull()?.takeIf { it.label.startsWith(q, ignoreCase = true) }
+}
+
+/**
  * The app to open right away while typing, or null. An exact name match opens at once.
  * Two or more words that leave a single match also open it, so "google maps" is enough.
  */
