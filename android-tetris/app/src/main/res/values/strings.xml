@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mini Tetris</string>
+    <string name="score">Puan</string>
+    <string name="lines">Satır</string>
+    <string name="next">Sıradaki</string>
+    <string name="pause">Duraklat</string>
+    <string name="resume">Devam</string>
+    <string name="game_over">Oyun bitti</string>
+    <string name="new_game">Yeni oyun</string>
+    <string name="rotate">Döndür</string>
+    <string name="drop">Bırak</string>
+</resources>
