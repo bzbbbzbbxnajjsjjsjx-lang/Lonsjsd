@@ -1080,7 +1080,7 @@ private fun AppRow(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Text(
-            text = highlightMatch(app.label, query),
+            text = highlightMatch(app.label, query, MaterialTheme.colorScheme.primary),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,

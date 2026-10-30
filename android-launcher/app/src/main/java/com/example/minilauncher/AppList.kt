@@ -59,7 +59,10 @@ fun List<AppEntry>.autoOpenMatch(query: String, usage: Map<String, Int>): AppEnt
     if (q.isEmpty()) return null
     firstOrNull { it.label.equals(q, ignoreCase = true) }?.let { return it }
     if (q.split(Regex("\\s+")).size < 2) return null
-    return search(q, usage).singleOrNull()
+    val matches = search(q, usage)
+    matches.singleOrNull()?.let { return it }
+    // Several apps match, but the top one starts with the full typed text: open that one.
+    return matches.firstOrNull()?.takeIf { it.label.startsWith(q, ignoreCase = true) }
 }
 
 /** Counts how often each app is opened from the launcher. Stored locally on the device. */

@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
@@ -133,14 +134,14 @@ fun AppActionsSheet(app: AppEntry, items: List<ActionItem>, onDismiss: () -> Uni
 }
 
 /** App name with the typed prefix in bold, so matches stand out in the list. */
-fun highlightMatch(label: String, query: String): AnnotatedString {
+fun highlightMatch(label: String, query: String, highlight: Color): AnnotatedString {
     val q = query.trim()
     if (q.isEmpty()) return AnnotatedString(label)
     val start = label.indexOf(q, ignoreCase = true)
     if (start < 0) return AnnotatedString(label)
     return buildAnnotatedString {
         append(label.substring(0, start))
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = highlight)) {
             append(label.substring(start, start + q.length))
         }
         append(label.substring(start + q.length))
