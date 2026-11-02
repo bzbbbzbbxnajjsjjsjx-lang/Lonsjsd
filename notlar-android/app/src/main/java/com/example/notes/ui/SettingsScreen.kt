@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -78,6 +80,25 @@ import com.example.notes.data.ThemeMode
 
 @Composable
 fun SettingsScreen(state: UiState, vm: NotesViewModel, onBack: () -> Unit) {
+    var licenses by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntOffset>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    androidx.compose.animation.AnimatedContent(
+        targetState = licenses,
+        label = "licenses",
+        transitionSpec = {
+            val dir = if (targetState) 1 else -1
+            (androidx.compose.animation.slideInHorizontally(spatial) { dir * it / 3 } + androidx.compose.animation.fadeIn(effects)) togetherWith
+                (androidx.compose.animation.slideOutHorizontally(spatial) { -dir * it / 6 } + androidx.compose.animation.fadeOut(effects))
+        },
+    ) { showLicenses ->
+        if (showLicenses) LicensesScreen(onBack = { licenses = false })
+        else SettingsBody(state, vm, onBack, onLicenses = { licenses = true })
+    }
+}
+
+@Composable
+private fun SettingsBody(state: UiState, vm: NotesViewModel, onBack: () -> Unit, onLicenses: () -> Unit) {
     val haptics = rememberHaptics()
     val s = state.settings
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -212,7 +233,16 @@ fun SettingsScreen(state: UiState, vm: NotesViewModel, onBack: () -> Unit) {
 
             item { GroupTitle("Hakkında") }
             item {
-                ActionRow(Icons.Outlined.Info, "Notlar 2.0", "Material 3 Expressive ile yapıldı", Pos.Single) { haptics.tick() }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val version = remember {
+                    runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+                }
+                ActionRow(Icons.Outlined.Info, "Notlar $version", "Material 3 Expressive ile yapıldı", Pos.First) { haptics.tick() }
+            }
+            item {
+                ActionRow(Icons.Outlined.Gavel, "Lisanslar ve emeği geçenler", "Açık kaynak kitaplıklar ve teşekkürler", Pos.Last) {
+                    haptics.tick(); onLicenses()
+                }
             }
             item { Spacer(Modifier.navigationBarsPadding()) }
         }
