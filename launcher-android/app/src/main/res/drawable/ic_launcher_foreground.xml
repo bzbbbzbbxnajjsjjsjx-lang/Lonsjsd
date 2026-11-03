@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded grid of four tiles with a search spark in one corner. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.72" android:scaleY="0.72" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFF" android:pathData="M26,38 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M58,30 L74,30 Q82,30 82,38 L82,46 Q82,54 74,54 L66,54 Q58,54 58,46 Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M34,58 L42,58 Q50,58 50,66 L50,74 Q50,82 42,82 L34,82 Q26,82 26,74 L26,66 Q26,58 34,58 Z" />
+        <path android:fillColor="#D0BCFF" android:pathData="M70,58 L74,66 L82,70 L74,74 L70,82 L66,74 L58,70 L66,66 Z" />
+    </group>
+</vector>

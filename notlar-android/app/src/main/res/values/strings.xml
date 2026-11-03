@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notlar</string>
+    <string name="shortcut_new_note">Yeni not</string>
+    <string name="shortcut_new_list">Yeni liste</string>
+</resources>
