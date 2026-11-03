@@ -13,7 +13,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.launcher.ui.LauncherScreen
+import com.example.launcher.ui.HomeScreen
 import com.example.launcher.ui.LauncherTheme
 
 class MainActivity : ComponentActivity() {
@@ -28,33 +28,40 @@ class MainActivity : ComponentActivity() {
                 vm.effect.collect { effect ->
                     when (effect) {
                         is Effect.Launch -> runCatching { vm.source.launch(effect.app) }
+                            .onSuccess { vm.launched(effect.app) }
                             .onFailure { toast("${effect.app.label} açılamadı") }
                         is Effect.WebSearch -> webSearch(effect.query)
-                        is Effect.Toast -> toast(effect.text)
                     }
                 }
             }
-            LauncherTheme(state.settings) { LauncherScreen(vm) }
+            LauncherTheme(state.settings) { HomeScreen(vm) }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        vm.onResume()
+        vm.onReturn()
     }
 
-    /** Home pressed while the launcher is already in front. */
+    override fun onPause() {
+        super.onPause()
+        vm.onLeave()
+    }
+
+    /** Home pressed while this launcher is already in front: back to an empty search box. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        vm.onHome()
+        vm.startOver()
     }
 
     private fun webSearch(query: String) {
         try {
             startActivity(Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query))
+            vm.webSearched()
         } catch (_: ActivityNotFoundException) {
             runCatching {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query))))
+                vm.webSearched()
             }.onFailure { toast("Web araması açılamadı") }
         }
     }

@@ -18,187 +18,129 @@ import kotlinx.coroutines.withContext
 data class LauncherState(
     val apps: List<App> = emptyList(),
     val query: String = "",
+    /** Apps matching [query], best first. Empty while nothing is typed. */
+    val matches: List<App> = emptyList(),
     val settings: Settings = Settings(),
-    val favorites: List<String> = emptyList(),
-    val hidden: Set<String> = emptySet(),
-    val usage: Map<String, Int> = emptyMap(),
-    val drawerOpen: Boolean = false,
     val settingsOpen: Boolean = false,
-    val loaded: Boolean = false,
-    /** Bumped when installed packages change, so icons on screen are fetched again. */
+    /** Bumped when installed apps change, so an icon on screen is fetched again. */
     val iconEpoch: Int = 0,
 ) {
-    val visibleApps: List<App> get() = apps.filterNot { it.key in hidden }
-
-    /**
-     * Apps matching the query, best first; ties go to the app opened most often. Hidden apps
-     * stay out of the drawer but can still be opened by typing their name.
-     */
-    val results: List<App> by lazy {
-            if (query.isBlank()) return@lazy emptyList()
-            apps
-                .map { it to Search.score(it.label, query, it.packageName) }
-                .filter { it.second > 0 }
-                .sortedWith(
-                    compareByDescending<Pair<App, Int>> { it.second }
-                        .thenByDescending { usage[it.first.key] ?: 0 }
-                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.first.label },
-                )
-                .map { it.first }
-        }
-
-    val favoriteApps: List<App> get() = favorites.mapNotNull { k -> visibleApps.firstOrNull { it.key == k } }
-
-    /** Most opened apps that are not already favorites, for the home screen. */
-    val suggestions: List<App>
-        get() = visibleApps.filter { it.key !in favorites && (usage[it.key] ?: 0) > 0 }
-            .sortedByDescending { usage[it.key] ?: 0 }
-            .take(4)
-
-    val calculation: String? get() = Calculator.evaluate(query)?.let(Calculator::format)
+    val best: App? get() = matches.firstOrNull()
 }
 
 sealed interface Effect {
     data class Launch(val app: App) : Effect
     data class WebSearch(val query: String) : Effect
-    data class Toast(val text: String) : Effect
 }
 
-class LauncherViewModel(app: Application) : AndroidViewModel(app) {
-    val source = AppSource(app)
-    private val prefs = LauncherPrefs(app)
+class LauncherViewModel(application: Application) : AndroidViewModel(application) {
+    val source = AppSource(application)
+    private val store = LauncherStore(application)
+    private val matcher = AppMatcher()
+    private val uses = store.uses().toMutableMap()
 
-    private val _state = MutableStateFlow(LauncherState())
+    private val _state = MutableStateFlow(LauncherState(settings = store.settings()))
     val state: StateFlow<LauncherState> = _state.asStateFlow()
 
     private val effects = Channel<Effect>(Channel.BUFFERED)
     val effect = effects.receiveAsFlow()
 
-    /** Bumped every time the home screen comes to the front, to refocus the search box. */
-    private val _homeShown = MutableStateFlow(0)
-    val homeShown: StateFlow<Int> = _homeShown.asStateFlow()
+    /** Bumped whenever the home screen should start over: empty box, keyboard up. */
+    private val _reset = MutableStateFlow(0)
+    val reset: StateFlow<Int> = _reset.asStateFlow()
 
-    private var autoLaunchJob: Job? = null
+    private var autoLaunch: Job? = null
     private var reloadJob: Job? = null
-    private val callback = source.register { pkg ->
-        source.forget(pkg)
+    private val watcher = source.watch {
+        source.clearIcons()
         _state.update { it.copy(iconEpoch = it.iconEpoch + 1) }
-        reload()
+        reload(debounce = true)
     }
 
     /** Set when the launcher hands off to another app, so coming back starts clean. */
-    private var leftHome = false
+    var handedOff = false
+        private set
 
-    init {
-        _state.update {
-            it.copy(settings = prefs.settings(), favorites = prefs.favorites(), hidden = prefs.hidden(), usage = prefs.usage())
-        }
-        reload()
-    }
+    init { reload(debounce = false) }
 
     /** One scan at a time; a burst of package changes collapses into the last one. */
-    fun reload() {
+    private fun reload(debounce: Boolean) {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
-            if (state.value.loaded) delay(250)
+            if (debounce) delay(250)
             val apps = withContext(Dispatchers.IO) { runCatching { source.load() }.getOrNull() } ?: return@launch
-            _state.update { it.copy(apps = apps, loaded = true) }
+            _state.update { it.copy(apps = apps, matches = rank(it.query, apps)) }
         }
     }
 
-    fun setQuery(q: String) {
-        _state.update { it.copy(query = q) }
-        autoLaunchJob?.cancel()
-        val s = state.value
-        if (!s.settings.autoLaunch || q.isBlank()) return
-        val results = s.results
-        // One match left: open it after a short pause, so a fast typist can still keep going.
-        if (results.size == 1) {
-            val only = results.first()
-            autoLaunchJob = viewModelScope.launch {
-                delay(350)
-                if (state.value.query == q) launch(only)
+    private fun rank(query: String, apps: List<App>) =
+        if (query.isBlank()) emptyList() else matcher.rank(query, apps, { it.label }, { uses[it.key] ?: 0 })
+
+    fun setQuery(query: String) {
+        autoLaunch?.cancel()
+        val matches = rank(query, state.value.apps)
+        _state.update { it.copy(query = query, matches = matches) }
+        // Exactly one app fits what was typed: open it after a short pause, which a fast
+        // typist's next letter cancels. One letter is too little to be sure.
+        if (state.value.settings.autoLaunch && matches.size == 1 && query.trim().length >= 2) {
+            autoLaunch = viewModelScope.launch {
+                delay(AUTO_LAUNCH_DELAY_MS)
+                if (state.value.query == query) open(matches.single())
             }
         }
     }
 
-    /** The keyboard's Go key: open the best match, else search the web. */
+    /** The keyboard's Go key. */
     fun submit() {
         val s = state.value
-        val top = s.results.firstOrNull()
         when {
-            top != null -> launch(top)
-            s.query.isNotBlank() && s.settings.webSearch -> webSearch()
+            s.best != null -> open(s.best!!)
+            s.query.isNotBlank() && s.settings.webSearch -> effects.trySend(Effect.WebSearch(s.query.trim()))
         }
     }
 
-    fun launch(app: App) {
-        autoLaunchJob?.cancel()
-        leftHome = true
+    private fun open(app: App) {
+        autoLaunch?.cancel()
         effects.trySend(Effect.Launch(app))
-        val usage = state.value.usage.toMutableMap().apply { this[app.key] = (this[app.key] ?: 0) + 1 }
-        _state.update { it.copy(usage = usage) }
-        viewModelScope.launch(Dispatchers.IO) { prefs.saveUsage(usage) }
     }
 
-    fun webSearch() {
-        val q = state.value.query.trim()
-        if (q.isNotEmpty()) { leftHome = true; effects.trySend(Effect.WebSearch(q)) }
+    /** Called once the app really started; only then does it count toward ranking. */
+    fun launched(app: App) {
+        handedOff = true
+        val count = (uses[app.key] ?: 0) + 1
+        uses[app.key] = count
+        store.countUse(app.key, count)
     }
 
-    /** The launcher is back after opening something: start from a clean home screen. */
-    fun onResume() {
-        if (leftHome) { leftHome = false; onHome() }
+    fun webSearched() { handedOff = true }
+
+    /** The launcher left the foreground: an auto-launch still waiting must not fire. */
+    fun onLeave() = autoLaunch?.cancel()
+
+    fun onReturn() {
+        if (handedOff) {
+            handedOff = false
+            startOver()
+        }
     }
 
-    /** Home was pressed: start from a clean home screen. */
-    fun onHome() {
-        autoLaunchJob?.cancel()
-        _state.update { it.copy(query = "", drawerOpen = false, settingsOpen = false) }
-        _homeShown.update { it + 1 }
+    /** Home pressed, or the launcher came back after opening something. */
+    fun startOver() {
+        autoLaunch?.cancel()
+        _state.update { it.copy(query = "", matches = emptyList(), settingsOpen = false) }
+        _reset.update { it + 1 }
     }
 
-    fun clearQuery() {
-        autoLaunchJob?.cancel()
-        _state.update { it.copy(query = "") }
-    }
-
-    fun openDrawer(open: Boolean) = _state.update { it.copy(drawerOpen = open) }
     fun openSettings(open: Boolean) = _state.update { it.copy(settingsOpen = open) }
 
-    fun toggleFavorite(app: App) {
-        val favs = state.value.favorites
-        val next = if (app.key in favs) favs - app.key else favs + app.key
-        _state.update { it.copy(favorites = next) }
-        prefs.saveFavorites(next)
-        effects.trySend(Effect.Toast(if (app.key in favs) "${app.label} ana ekrandan kaldırıldı" else "${app.label} ana ekrana eklendi"))
+    fun updateSettings(change: (Settings) -> Settings) {
+        _state.update { it.copy(settings = change(it.settings)) }
+        store.save(state.value.settings)
     }
 
-    /** Moves within the favorites the dock actually shows; hidden or removed ones keep their place at the end. */
-    fun moveFavorite(app: App, by: Int) {
-        val s = state.value
-        val shown = s.favoriteApps.map { it.key }.toMutableList()
-        val i = shown.indexOf(app.key)
-        if (i < 0) return
-        val j = (i + by).coerceIn(0, shown.lastIndex)
-        if (i == j) return
-        shown.add(j, shown.removeAt(i))
-        val next = shown + s.favorites.filterNot { it in shown }
-        _state.update { it.copy(favorites = next) }
-        prefs.saveFavorites(next)
-    }
+    override fun onCleared() = source.unwatch(watcher)
 
-    fun setHidden(app: App, hide: Boolean) {
-        val next = if (hide) state.value.hidden + app.key else state.value.hidden - app.key
-        _state.update { it.copy(hidden = next) }
-        prefs.saveHidden(next)
-        if (hide) effects.trySend(Effect.Toast("${app.label} çekmeceden gizlendi; yazarak yine açabilirsiniz"))
+    companion object {
+        const val AUTO_LAUNCH_DELAY_MS = 300L
     }
-
-    fun updateSettings(f: (Settings) -> Settings) {
-        _state.update { it.copy(settings = f(it.settings)) }
-        prefs.save(state.value.settings)
-    }
-
-    override fun onCleared() = source.unregister(callback)
 }

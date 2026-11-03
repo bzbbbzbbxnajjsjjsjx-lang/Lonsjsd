@@ -1,18 +1,20 @@
 # Başlatıcı
 
-A Material 3 Expressive home screen (launcher) for Android, built around typing: start typing an app's name and it opens.
+An Android home screen with one way in: type an app's name and it opens. There is no app list or drawer.
 
 ## How it works
 
-- The keyboard is ready as soon as the home screen appears. Type part of a name and the matching apps show up instantly.
-- When only one app matches, it opens by itself after a short pause. Enter opens the best match, or searches the web when nothing matches.
-- Matching understands Turkish letters and accents (`calis` finds "Çalışma"), word starts (`maps`), initials (`gm` for Google Maps), letters in order (`wtsp` for WhatsApp), and the distinctive part of the package name. Apps you open more often rank higher.
-- Typing a sum (`200*10%`, `(1+2)^2`) shows the result; tap it to copy.
-- Home screen: a large clock and date (tap for alarms), the apps you use most, and your own pinned apps.
-- Swipe up, or tap the grid button, for every app in alphabetical order with letter headers.
-- Long-press any app to pin it to the home screen, reorder it, hide it from the drawer (it stays searchable), open its info page or uninstall it.
-- Work profile apps are included.
-- Settings: auto-open on a single match, keyboard on home, web search, theme, dynamic color, clock, wallpaper dimming, haptics, and hidden apps.
+- The keyboard comes up whenever the home screen appears.
+- One line above the search bar names the app that Enter would open; nothing else is shown.
+- When what you typed (two letters or more) fits exactly one app, that app opens on its own after 0.3 s. A further letter cancels it.
+- Enter opens the best match. With no match it searches the web (can be turned off).
+- Matching follows AOSP Launcher3 (`StringMatcherUtility`): the text must match the start of a word in the app's name (`maps` → Google Maps, `tube` → YouTube), ignoring case and accents. Turkish i, ı, I and İ are treated as the same letter, so `insta` finds Instagram on a Turkish keyboard.
+- Ranking: the full name typed out, then names that start with the text, then a later word; within each, apps you open more often first.
+- The keyboard is set up like Launcher3's search box (`textNoSuggestions`, `flagNoExtractUi`), so suggestions and autocorrect do not change what you type.
+- Work profile apps are included while the profile is on.
+- Settings: become the default home app (the HOME role on Android 10+), auto-open, web search, clock, dynamic color, theme.
+
+Built on Material 3 Expressive components (`MaterialExpressiveTheme`, `SearchBar`, `ModalBottomSheet`, `ListItem`, connected `ToggleButton`s). There are no custom animations; motion comes from the components.
 
 ## Build
 
@@ -23,4 +25,4 @@ Needs JDK 25 and the Android SDK with platform 37.2.
 ./gradlew :app:testDebugUnitTest
 ```
 
-After installing, make it the default home app from its settings ("Ayarla") or in Android Settings → Apps → Default apps → Home app.
+The matching code is ported from AOSP Launcher3 (Apache License 2.0).

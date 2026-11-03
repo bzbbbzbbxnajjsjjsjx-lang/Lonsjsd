@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Needed to open the system uninstall dialog from an app's menu. -->
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-
     <!-- Android 11+ package visibility: every app that has a launcher icon. -->
     <queries>
         <intent>
@@ -26,9 +23,10 @@
             android:launchMode="singleTask"
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
-            android:excludeFromRecents="true"
             android:resizeableActivity="true"
             android:screenOrientation="unspecified"
+            android:taskAffinity=""
+            android:configChanges="keyboard|keyboardHidden|mcc|mnc|navigation|orientation|screenSize|screenLayout|smallestScreenSize"
             android:windowSoftInputMode="adjustResize|stateUnchanged">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
