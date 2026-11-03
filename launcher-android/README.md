@@ -5,8 +5,9 @@ An Android home screen with one way in: type an app's name and it opens. There i
 ## How it works
 
 - The keyboard comes up whenever the home screen appears.
-- One line above the search bar names the app that Enter would open; nothing else is shown.
-- When what you typed (two letters or more) fits exactly one app, that app opens on its own after 0.3 s. A further letter cancels it.
+- A card above the search bar names the app that Enter would open; nothing else is shown. When the best match changes while typing, the old app slides out and the new one slides in on the expressive spatial spring, with icons loaded ahead so nothing pops in late.
+- When what you typed (two letters or more) fits exactly one app, that app opens on its own after 0.3 s, shown by a wavy progress ring filling around its icon. A further letter cancels it.
+- The app's window grows out of its icon (ActivityOptions.makeScaleUpAnimation, as Launcher3 does when it has no remote animation).
 - Enter opens the best match. With no match it searches the web (can be turned off).
 - Matching follows AOSP Launcher3 (`StringMatcherUtility`): the text must match the start of a word in the app's name (`maps` → Google Maps, `tube` → YouTube), ignoring case and accents. Turkish i, ı, I and İ are treated as the same letter, so `insta` finds Instagram on a Turkish keyboard.
 - Ranking: the full name typed out, then names that start with the text, then a later word; within each, apps you open more often first.
@@ -14,7 +15,7 @@ An Android home screen with one way in: type an app's name and it opens. There i
 - Work profile apps are included while the profile is on.
 - Settings: become the default home app (the HOME role on Android 10+), auto-open, web search, clock, dynamic color, theme.
 
-Built on Material 3 Expressive components (`MaterialExpressiveTheme`, `SearchBar`, `ModalBottomSheet`, `ListItem`, connected `ToggleButton`s). There are no custom animations; motion comes from the components.
+Built on Material 3 Expressive components (`MaterialExpressiveTheme`, `SearchBar`, `ModalBottomSheet`, `ListItem`, connected `ToggleButton`s). Motion uses the expressive motion scheme's springs (`MaterialTheme.motionScheme`) throughout.
 
 ## Build
 

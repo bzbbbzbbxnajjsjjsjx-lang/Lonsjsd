@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 vm.effect.collect { effect ->
                     when (effect) {
-                        is Effect.Launch -> runCatching { vm.source.launch(effect.app) }
+                        is Effect.Launch -> runCatching { vm.source.launch(effect.app, effect.bounds, launchOptions(effect.bounds)) }
                             .onSuccess { vm.launched(effect.app) }
                             .onFailure { toast("${effect.app.label} açılamadı") }
                         is Effect.WebSearch -> webSearch(effect.query)
@@ -64,6 +64,15 @@ class MainActivity : ComponentActivity() {
                 vm.webSearched()
             }.onFailure { toast("Web araması açılamadı") }
         }
+    }
+
+    /**
+     * The app's window grows out of its icon, the fallback Launcher3 uses for app launches
+     * (ActivityOptions.makeScaleUpAnimation from the icon's bounds).
+     */
+    private fun launchOptions(bounds: android.graphics.Rect?): Bundle? {
+        bounds ?: return null
+        return android.app.ActivityOptions.makeScaleUpAnimation(window.decorView, bounds.left, bounds.top, bounds.width(), bounds.height()).toBundle()
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()

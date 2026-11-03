@@ -28,6 +28,9 @@ class AppSource(private val context: Context) {
         .flatMap { user -> launcherApps.getActivityList(null, user).map { App(it.label.toString(), it.componentName, user) } }
         .filterNot { it.component.packageName == context.packageName }
 
+    /** An icon already loaded, without any work; lets the UI draw it in the very first frame. */
+    fun cachedIcon(app: App, sizePx: Int): Bitmap? = icons["${app.key}@$sizePx"]
+
     fun icon(app: App, sizePx: Int): Bitmap? = icons["${app.key}@$sizePx"] ?: runCatching {
         launcherApps.getActivityList(app.component.packageName, app.user)
             .firstOrNull { it.componentName == app.component }
@@ -38,7 +41,9 @@ class AppSource(private val context: Context) {
     /** Drops cached icons, for when an installed app may have changed. */
     fun clearIcons() = icons.clear()
 
-    fun launch(app: App) = launcherApps.startMainActivity(app.component, app.user, null, null)
+    /** Starts the app; [bounds] and [options] give the system the icon to grow the window from. */
+    fun launch(app: App, bounds: android.graphics.Rect?, options: android.os.Bundle?) =
+        launcherApps.startMainActivity(app.component, app.user, bounds, options)
 
     /** Calls [onChange] on the main thread whenever installed apps change. */
     fun watch(onChange: () -> Unit): LauncherApps.Callback {

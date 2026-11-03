@@ -13,7 +13,25 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -43,6 +61,8 @@ import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.animation.EnterExitState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -107,7 +127,7 @@ fun HomeScreen(vm: LauncherViewModel) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp)) {
             if (state.settings.showClock) Clock()
             Spacer(Modifier.weight(1f))
-            if (state.query.isNotBlank()) Prediction(state, vm)
+            Prediction(state, vm)
             Spacer(Modifier.height(12.dp))
             LauncherSearchBar(state, vm, onEditText = { editText = it })
             Spacer(Modifier.height(12.dp))
@@ -147,52 +167,115 @@ private fun Clock() {
     }
 }
 
-/** One line: the app Enter would open, or that nothing matches. Never a list. */
+/**
+ * A card naming the app Enter would open. When the best match changes while typing, the
+ * old app slides out and the new one slides in on the expressive spatial spring, so the
+ * card never jumps. While an app is about to open by itself, a wavy ring fills around it.
+ */
 @Composable
 private fun Prediction(state: LauncherState, vm: LauncherViewModel) {
-    val best = state.best
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (best != null) {
-            AppIcon(best, vm, 40)
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    best.label,
-                    style = MaterialTheme.typography.titleLarge.copy(shadow = OnWallpaperShadow),
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val more = state.matches.size - 1
-                Text(
-                    when {
-                        more == 0 && state.settings.autoLaunch && state.query.trim().length >= 2 -> "Açılıyor"
-                        more == 0 -> "Enter ile aç"
-                        else -> "Enter ile aç · $more uygulama daha uyuyor"
-                    },
-                    style = MaterialTheme.typography.bodyMedium.copy(shadow = OnWallpaperShadow),
-                    color = Color.White.copy(alpha = 0.85f),
-                )
+    val motion = MaterialTheme.motionScheme
+    val spatialOffset = motion.fastSpatialSpec<IntOffset>()
+    val spatial = motion.fastSpatialSpec<Float>()
+    val effects = motion.fastEffectsSpec<Float>()
+    val px = with(LocalDensity.current) { IconSize.roundToPx() }
+
+    // Load the icons of the next few candidates ahead, so a change of match has its icon ready.
+    LaunchedEffect(state.matches) {
+        withContext(Dispatchers.IO) { state.matches.take(4).forEach { vm.source.icon(it, px) } }
+    }
+
+    AnimatedVisibility(
+        visible = state.query.isNotBlank(),
+        enter = slideInVertically(motion.defaultSpatialSpec()) { it / 2 } + scaleIn(motion.defaultSpatialSpec(), initialScale = 0.85f) + fadeIn(motion.defaultEffectsSpec()),
+        exit = slideOutVertically(motion.fastSpatialSpec()) { it / 2 } + scaleOut(motion.fastSpatialSpec(), targetScale = 0.9f) + fadeOut(motion.fastEffectsSpec()),
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            AnimatedContent(
+                targetState = state.best,
+                contentKey = { it?.key },
+                transitionSpec = {
+                    (slideInVertically(spatialOffset) { it / 2 } + scaleIn(spatial, initialScale = 0.9f) + fadeIn(effects)) togetherWith
+                        (slideOutVertically(spatialOffset) { -it / 2 } + scaleOut(spatial, targetScale = 0.9f) + fadeOut(effects)) using
+                        SizeTransform(clip = false) { _, _ -> motion.fastSpatialSpec() }
+                },
+                label = "prediction",
+            ) { app ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (app != null) {
+                        Box(
+                            Modifier
+                                .size(IconRing)
+                                .onGloballyPositioned { c ->
+                                    // Only the app Enter would open reports its place; an outgoing
+                                    // one sliding away must not move the launch animation's origin.
+                                    if (app.key == vm.state.value.best?.key && transition.targetState == EnterExitState.Visible) {
+                                        val r = c.boundsInWindow()
+                                        vm.iconBounds = android.graphics.Rect(r.left.toInt(), r.top.toInt(), r.right.toInt(), r.bottom.toInt())
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (state.pending?.key == app.key) Countdown()
+                            AppIcon(app, vm, px)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(app.label, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val more = state.matches.size - 1
+                            Text(
+                                when {
+                                    state.pending?.key == app.key -> "Açılıyor"
+                                    more == 0 -> "Enter ile aç"
+                                    else -> "Enter ile aç · $more uygulama daha uyuyor"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        Text(
+                            if (state.settings.webSearch) "Eşleşen uygulama yok · Enter ile web'de ara" else "Eşleşen uygulama yok",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                    }
+                }
             }
-        } else {
-            Text(
-                if (state.settings.webSearch) "Eşleşen uygulama yok · Enter ile web'de ara" else "Eşleşen uygulama yok",
-                style = MaterialTheme.typography.bodyLarge.copy(shadow = OnWallpaperShadow),
-                color = Color.White,
-            )
         }
     }
 }
 
+private val IconSize = 44.dp
+private val IconRing = 60.dp
+
+/** Fills once over the auto-launch pause; linear, because it is a measure of time left. */
 @Composable
-private fun AppIcon(app: App, vm: LauncherViewModel, sizeDp: Int) {
-    val px = with(LocalDensity.current) { sizeDp.dp.roundToPx() }
-    val epoch = vm.state.collectAsStateWithLifecycle().value.iconEpoch
-    val bitmap by produceState<android.graphics.Bitmap?>(null, app.key, px, epoch) {
-        value = withContext(Dispatchers.IO) { vm.source.icon(app, px) }
+private fun Countdown() {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, tween(LauncherViewModel.AUTO_LAUNCH_DELAY_MS.toInt(), easing = LinearEasing))
     }
-    bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(sizeDp.dp)) }
-        ?: Spacer(Modifier.size(sizeDp.dp))
+    CircularWavyProgressIndicator(progress = { progress.value }, modifier = Modifier.size(IconRing))
+}
+
+@Composable
+private fun AppIcon(app: App, vm: LauncherViewModel, px: Int) {
+    val epoch = vm.state.collectAsStateWithLifecycle().value.iconEpoch
+    // Start from the cache, so an icon loaded ahead appears in the first frame, not a frame later.
+    // Keyed on the app and the icon epoch, so a different app or an updated icon starts fresh.
+    val bitmap by key(app.key, px, epoch) {
+        produceState(vm.source.cachedIcon(app, px)) {
+            if (value == null) value = withContext(Dispatchers.IO) { vm.source.icon(app, px) }
+        }
+    }
+    bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(IconSize)) }
+        ?: Spacer(Modifier.size(IconSize))
 }
 
 /**

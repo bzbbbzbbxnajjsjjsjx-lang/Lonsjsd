@@ -22,6 +22,8 @@ data class LauncherState(
     val matches: List<App> = emptyList(),
     val settings: Settings = Settings(),
     val settingsOpen: Boolean = false,
+    /** The app that will open on its own once the short pause is over, if any. */
+    val pending: App? = null,
     /** Bumped when installed apps change, so an icon on screen is fetched again. */
     val iconEpoch: Int = 0,
 ) {
@@ -29,7 +31,7 @@ data class LauncherState(
 }
 
 sealed interface Effect {
-    data class Launch(val app: App) : Effect
+    data class Launch(val app: App, val bounds: android.graphics.Rect?) : Effect
     data class WebSearch(val query: String) : Effect
 }
 
@@ -50,6 +52,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val reset: StateFlow<Int> = _reset.asStateFlow()
 
     private var autoLaunch: Job? = null
+
+    /** Where the predicted app's icon is on screen, so its window can grow out of it. */
+    var iconBounds: android.graphics.Rect? = null
     private var reloadJob: Job? = null
     private val watcher = source.watch {
         source.clearIcons()
@@ -79,10 +84,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setQuery(query: String) {
         autoLaunch?.cancel()
         val matches = rank(query, state.value.apps)
-        _state.update { it.copy(query = query, matches = matches) }
+        if (matches.firstOrNull()?.key != state.value.best?.key) iconBounds = null
+        _state.update { it.copy(query = query, matches = matches, pending = null) }
         // Exactly one app fits what was typed: open it after a short pause, which a fast
         // typist's next letter cancels. One letter is too little to be sure.
         if (state.value.settings.autoLaunch && matches.size == 1 && query.trim().length >= 2) {
+            _state.update { it.copy(pending = matches.single()) }
             autoLaunch = viewModelScope.launch {
                 delay(AUTO_LAUNCH_DELAY_MS)
                 if (state.value.query == query) open(matches.single())
@@ -101,7 +108,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun open(app: App) {
         autoLaunch?.cancel()
-        effects.trySend(Effect.Launch(app))
+        _state.update { it.copy(pending = null) }
+        effects.trySend(Effect.Launch(app, iconBounds))
     }
 
     /** Called once the app really started; only then does it count toward ranking. */
@@ -115,7 +123,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun webSearched() { handedOff = true }
 
     /** The launcher left the foreground: an auto-launch still waiting must not fire. */
-    fun onLeave() = autoLaunch?.cancel()
+    fun onLeave() {
+        autoLaunch?.cancel()
+        _state.update { it.copy(pending = null) }
+    }
 
     fun onReturn() {
         if (handedOff) {
@@ -127,7 +138,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     /** Home pressed, or the launcher came back after opening something. */
     fun startOver() {
         autoLaunch?.cancel()
-        _state.update { it.copy(query = "", matches = emptyList(), settingsOpen = false) }
+        _state.update { it.copy(query = "", matches = emptyList(), settingsOpen = false, pending = null) }
         _reset.update { it + 1 }
     }
 
